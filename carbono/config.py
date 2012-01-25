@@ -15,6 +15,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 
+
+import os
+
+
 FILE_PATTERN = "{name}-{partition}-{volume}.data"
 BLOCK_SIZE = 1048576 # 1MB
 BASE_SYSTEM_SIZE = 0 #TODO (in bytes)
@@ -23,6 +27,9 @@ EOF = -1
 VERSION = (0, 1, 0, "alpha", 0)
 
 def get_version():
+    if ("BUILD_ID" in os.environ):
+        return os.environ["BUILD_ID"]
+
     version = "%s.%s" % (VERSION[0], VERSION[1])
     if VERSION[2]:
         version = "%s.%s" % (version, VERSION[2])
