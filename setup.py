@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>.
 
-from distutils.core import setup
+from setuptools import setup
 from carbono.config import get_version
 
 DEPENDS = "python2.7, partclone, ntfsprogs, btrfs-tools, e2fsprogs, genisoimage"
