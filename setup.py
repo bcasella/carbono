@@ -1,36 +1,23 @@
 #!/usr/bin/python
-# coding: utf-8
-# Copyright (C) 2011 Lucas Alvares Gomes <lucasagomes@gmail.com>
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, see <http://www.gnu.org/licenses/>.
-
+import os
 from setuptools import setup
 from carbono.config import get_version
 
-DEPENDS = "python2.7, partclone, ntfsprogs, btrfs-tools, e2fsprogs, genisoimage"
-DESC = "A hard disk imaging and recovery application"
+def read(fname):
+    return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
-setup(name = "carbono",
-      version = get_version(),
-      author = "Lucas Alvares Gomes",
-      author_email = "lucasagomes@gmail.com",
-      url = "http://umago.info/carbono",
-      description = DESC,
-      license = "GNU GPLv2",
-      packages = ["carbono","carbono.buffer_manager",
+
+setup(
+    name = "carbono",
+    version = get_version(),
+    author = "Bruno Casella",
+    author_email = "bruno.casella@gmail.com",
+    description = ("A hard disk imaging and recovery application"),
+    license = "GPL",
+    keywords = "network_manager dbus",
+    url = "http://umago.info/carbono",
+    packages = ["carbono","carbono.buffer_manager",
                   "carbono.filesystem", "carbono.ui",
                   "carbono.image_reader"],
-      scripts = ["scripts/carbono"],
-      )
-
+    scripts = ["scripts/carbono"],
+) 
