@@ -25,7 +25,7 @@ class BufferManagerFactory:
 
     def __init__(self, read_callback, job_callback=None):
         if job_callback:
-            if available_processors() <= 2 and is_hyperthreading():
+            if available_processors() <= 2:# and is_hyperthreading():
                 self._manager = SimpleManager(read_callback, job_callback)
             else:
                 self._manager = WorkManager(read_callback, job_callback)
