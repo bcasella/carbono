@@ -180,3 +180,19 @@ def check_if_root():
     if os.getuid() == 0:
         return True
     return False
+    
+def verify_4k(hd = "sda"):
+    '''
+    Retorna o tamanho fisico do setor
+    '''
+    try:       
+        f = open("/sys/block/{0}/queue/physical_block_size".format(hd))
+        block = f.readline()
+        if "4096" in block:
+            return(4096)
+        #se nao for 4K, considera-se 512
+        return(512)
+    except Exception as e:
+        #nao tem HD (uma vm sem hd, por exemplo)
+        return(512)    
+    
