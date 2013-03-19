@@ -22,7 +22,7 @@ import os
 FILE_PATTERN = "{name}-{partition}-{volume}.data"
 BLOCK_SIZE = 1048576 # 1MB
 BASE_SYSTEM_SIZE = 0 #TODO (in bytes)
-LOG_FILE = "/var/tmp/carbono.log"
+LOG_FILE = "/var/log/mstech/carbono.log"
 EOF = -1
 VERSION = (0, 1, 0, "alpha", 0)
 
