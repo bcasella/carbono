@@ -225,11 +225,12 @@ class ImageCreator:
             iso_creator.run()
 
         if self.canceled:
+            log.info("Creation canceled")
             self.notify_status("canceled", {"operation": 
                                             "Create image"})
         else:
             self.notify_status("finish")
-        log.info("Creation finished")
+            log.info("Creation finished")
 
     def stop(self):
         if self.active:
