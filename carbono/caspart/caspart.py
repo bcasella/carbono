@@ -120,17 +120,12 @@ class CasPart:
         get an wrong sector - where it could place a start/and of a part in the
         middle of a 4096b sector.
         '''
-        print "to aqui"
         hd_info_dict = self.get_hd_info(disk)
         cylinder_end = end/int(hd_info_dict['sectors_per_track'])
         cylinder_start = cylinder_end + 1
         sector_start = cylinder_start * int(hd_info_dict['sectors_per_track'])
         if self.verify_4k(disk):
-            print sector_start
             sector_start *= 512
-            
-            print "why the luck{0}".format(sector_start % 4096)
-            print (sector_start % 4096) / 4096
             if (sector_start % 4096):
                 #sector_start += (sector_start % 4096)*4096 - (sector_start % 4096)
                 sector_start += ((sector_start % 4096)/4096 +1) * 4096 - (sector_start % 4096) 
@@ -144,21 +139,14 @@ class CasPart:
         Given the size of the partition, gives where it should end
         It doesn't get a conflictant sector, just as the function above
         '''
-        #hd_info_dict = get_hd_info(disk)
-        print disk
         size = int(size_in_gb) * 1024 * 1024 *1024 #bytes
         if not self.verify_4k(disk):
-            print "not 4k"
-            #print start
-            print size
             end = int(start)*512 + size
             if (end % 512):  #if end is not divisable by 512b, its wrong (?)
                 #then, goes to the end of the next sector
                 end += (end % 512)*512 - (end % 512)
-                print end
             return end / 512            
         else: #4096b
-            print "4k"
             end = int(start)*512 + size
             if (end % 4096):  #if end is not divisable by 4k, its wrong
                 #then, goes to the end of that sector
@@ -202,7 +190,6 @@ class CasPart:
                                                     start = start,
                                                     #length = length)
                                                     end = end)
-            print "pqp"
             part_fs = None
             fs = part[1]
             print geometry
