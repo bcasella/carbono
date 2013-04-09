@@ -68,6 +68,8 @@ class DiskLayoutManager:
 
     def restore_from_file(self, disk, expand=False):
         """ """
+        
+        disk.unsetFlag(parted.DISK_CYLINDER_ALIGNMENT)
         with open(self.file_path, 'r') as f:
             layout = list()
             partitions = cPickle.load(f)
