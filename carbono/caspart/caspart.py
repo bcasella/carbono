@@ -50,9 +50,9 @@ class CasPart:
             Pega informacoes da hd a partir do comando fdisk -l
         '''        
         
-        info = {'sector_size_physical': 0, 'sector_size_logical': 0,
-                       'cylinders_number': 0, 'sectors_per_track': 0,
-                       'total_sectors': 0, 'disk_size':0}
+        info = {'sector_size_physical' : 0, 'sector_size_logical' : 0,
+                       'cylinders_number' : 0, 'sectors_per_track' : 0,
+                       'total_sectors' : 0, 'disk_size' : 0, 'heads' : 0}
                 
         out,err,ret = run_simple_command_echo("fdisk -l /dev/{0}".format(hd))
         if ret is not 0:
@@ -67,19 +67,22 @@ class CasPart:
                 info['disk_size'] = re.findall('\d+',linha)[-1]
             elif "cylinders" in linha:
 
-                #[heads (nao usado), sectors/track, cylinders, total sectors]
+                #[heads, sectors/track, cylinders, total sectors]
                 lst_aux = re.split('[,]',linha)
                 for str_aux in lst_aux:
-                    if "sectors/track" in str_aux:
+                    if "heads" in str_aux:
+                        info['heads'] = re.findall('\d+', str_aux)[-1]
+                    elif "sectors/track" in str_aux:
                         info['sectors_per_track'] = re.findall('\d+', str_aux)[-1]
                     elif "cylinders" in str_aux:
                         info['cylinders_number'] = re.findall('\d+', str_aux)[-1]
                     elif "total" in str_aux:
                         info['total_sectors'] = re.findall('\d+', str_aux)[-1]
+                    
             elif "Sector size" in linha:
                 #[logical, physical]
                 info['sector_size_logical'] = re.findall('\d+',linha)[0]
-                #info['sector_size_physical'] = re.findall('\d+',linha)[-1]
+                info['sector_size_physical'] = re.findall('\d+',linha)[-1]
         
         return info
 
@@ -97,16 +100,17 @@ class CasPart:
 
     def get_hd_info(self, hd = 'sda'):
         
-        hd_info_dic = {'sector_size_physical': 0, 'sector_size_logical': 0,
-                       'cylinders_number': 0, 'sectors_per_track': 0,
-                       'total_sectors': 0, 'disk_size':0, 'ptable_type': None}
+        hd_info_dic = {'sector_size_physical' : 0, 'sector_size_logical' : 0,
+                       'cylinders_number' : 0, 'sectors_per_track' : 0,
+                       'total_sectors' : 0, 'disk_size' : 0, 
+                       'heads' : 0, 'ptable_type' : None}
         
         parser_info = self.fdisk_parser(hd)
         
         for aux in parser_info:   
             hd_info_dic[aux] = parser_info[aux]
         
-        hd_info_dic['sector_size_physical'] = 4096 if self.verify_4k(hd) else 512
+        #hd_info_dic['sector_size_physical'] = 4096 if self.verify_4k(hd) else 512
         hd_info_dic['ptable_type'] = 'gpt' if self.verify_gpt(hd) else 'mbr'
         
         return hd_info_dic        
@@ -117,13 +121,15 @@ class CasPart:
         one, calculates where this one should start, returning a sector that
         don't give an cilinder conflict - where the end of last partition and
         the start of the new one is in the same cilinder - and also does not
-        get an wrong sector - where it could place a start/and of a part in the
+        get an wrong sector - where it could place a start/end of a part in the
         middle of a 4096b sector.
         '''
         hd_info_dict = self.get_hd_info(disk)
-        cylinder_end = end/int(hd_info_dict['sectors_per_track'])
+        cylinder_end = end/(int(hd_info_dict['heads']) * int(hd_info_dict['sectors_per_track']))
         cylinder_start = cylinder_end + 1
-        sector_start = cylinder_start * int(hd_info_dict['sectors_per_track'])
+        sector_start = cylinder_start * \
+                       int(hd_info_dict['heads']) * \
+                       int(hd_info_dict['sectors_per_track'])
         if self.verify_4k(disk):
             sector_start *= 512
             if (sector_start % 4096):
@@ -163,7 +169,11 @@ class CasPart:
             disk = "{0}".format(part[0][:3])
             break
         disk_path = "/dev/{0}".format(disk)
-        device = Device(disk_path)            
+        device = Device(disk_path)      
+        '''
+        print device.sectorSize      
+        print device.physicalSectorSize
+        '''
         disk_obj = Disk(device)        
         start = end = 0
         layout = list() #objs of parted.partition will be added in the list
