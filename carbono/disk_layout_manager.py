@@ -24,6 +24,7 @@ from _ped import partition_flag_get_by_name
 from carbono.exception import *
 from carbono.utils import *
 
+pergunta pra ele se vai ser embaixo ou em cima. a gnt vai levar o bolo!
 __all__ = ["DiskLayoutManager"]
 
 class PartitionLayout(object):
@@ -68,6 +69,10 @@ class DiskLayoutManager:
 
     def restore_from_file(self, disk, expand=False):
         """ """
+        
+        #Desativa o alinhamento automatico
+        disk.unsetFlag(parted.DISK_CYLINDER_ALIGNMENT)
+        
         with open(self.file_path, 'r') as f:
             layout = list()
             partitions = cPickle.load(f)
