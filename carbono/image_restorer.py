@@ -201,27 +201,35 @@ class ImageRestorer:
         else:
             self._finish()
         log.info("Restoration finished")
+        log.info("Iniciando gtk grubinstall")
+        cmd = "{0}".format(which("grubinstall"))
+        try:
+            self.process = RunCmd(cmd)
+            self.process.run()
+        except Exception as e:
+            log.error("Erro ao iniciar grubinstall. {0}".format(e))
 
     def expand_last_partition(self):
         # After all data is copied to the disk
         # we instance class again to reload
-                
+        
         sync()
         device = Device(self.target_device)
         disk = Disk(device)
         partition = disk.get_last_partition()
         if partition is not None:
             if partition.type == PARTITION_NORMAL:
-                log.info("Changing disk table")
                 expander = PartitionExpander(partition.get_path())
+                log.info("vai expandir")
                 new_size = expander.try_expand()
+                log.info("new_size {0}".format(new_size))
                 if new_size!= -1:
                     log.info("Expanding {0} filesystem".\
                              format(partition.get_path()))
                     self.notify_status("expand", {"device":
                                        partition.get_path()})
                     partition.filesystem.resize()
-                    log.info("Expasion finished")
+                log.info("maoeee")
 
     def stop(self):
         # When restoring only a swap partition, buffer_manager
