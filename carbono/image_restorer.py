@@ -30,8 +30,8 @@ from carbono.buffer_manager import BufferManagerFactory
 from carbono.exception import *
 from carbono.utils import *
 from carbono.config import *
-
 from carbono.log import log
+from partition_expander import PartitionExpander
 
 class ImageRestorer:
 
@@ -205,17 +205,23 @@ class ImageRestorer:
     def expand_last_partition(self):
         # After all data is copied to the disk
         # we instance class again to reload
+                
         sync()
         device = Device(self.target_device)
         disk = Disk(device)
         partition = disk.get_last_partition()
         if partition is not None:
             if partition.type == PARTITION_NORMAL:
-                log.info("Expanding {0} filesystem".\
-                         format(partition.get_path()))
-                self.notify_status("expand", {"device":
-                                   partition.get_path()})
-                partition.filesystem.resize()
+                log.info("Changing disk table")
+                expander = PartitionExpander(partition.get_path())
+                new_size = expander.try_expand()
+                if new_size!= -1:
+                    log.info("Expanding {0} filesystem".\
+                             format(partition.get_path()))
+                    self.notify_status("expand", {"device":
+                                       partition.get_path()})
+                    partition.filesystem.resize()
+                    log.info("Expasion finished")
 
     def stop(self):
         # When restoring only a swap partition, buffer_manager
