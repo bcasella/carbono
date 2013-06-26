@@ -111,6 +111,9 @@ class FilesystemFactory:
 
     def resize(self):
         return self._fs.resize()
+        
+    def format_filesystem(self):
+        return self._fs.format_filesystem()
 
     def stop(self):
         self._fs.stop()

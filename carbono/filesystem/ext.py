@@ -104,14 +104,28 @@ class Ext(Generic):
             return True
         return False
 
+    def format_filesystem(self):
+
+        proc = subprocess.Popen([which("mkfs.ext3"), self.path],
+                                stdout=subprocess.PIPE)
+        output = proc.stdout.read()
+        output = output.strip()
+        if output == 0:
+            return True
+        return False    
+    
+
     def resize(self):
+    
         if self.check():
-            ret = run_simple_command("{0} {1}".format(which("resize2fs"),
-                                                      self.path))
-            if ret == 0:
+            proc = subprocess.Popen([which("resize2fs"), self.path],
+                                    stdout=subprocess.PIPE)
+            output = proc.stdout.read()
+            output = output.strip()
+            if output == 0:
                 return True
         return False
-
+        
     def read_label(self):
         proc = subprocess.Popen([which("e2label"), self.path],
                                 stdout=subprocess.PIPE)
