@@ -35,12 +35,15 @@ class PartitionExpander:
             log.error("The partition must be primary")
             return -1
 
-        if last_partition.fileSystem is not None:
-            if last_partition.fileSystem.type != "ntfs":
-                log.error("We only support ntfs filesystem for now")
-                return -1
-        else:
-            log.error("The partititon has no filesystem")
+        #if last_partition.fileSystem is not None:
+        #    if last_partition.fileSystem.type != "ntfs":
+        #        log.error("We only support ntfs filesystem for now")
+        #        return -1
+        #else:
+        #    log.error("The partititon has no filesystem")
+        #    return -1
+        if last_partition.fileSystem is None:
+            log.error("The last Partition, is not typed")
             return -1
         
         # Recria a última partição do disco utilizando
@@ -72,7 +75,7 @@ class PartitionExpander:
 
         # Após criar a tabela de partição temos que fazer
         # com o kernel releia essa tabela. Será preciso
-        # fazer isso para dar continuidade ao processo
+        # fazer isso para dar continuidade ao processoi
         attempt = 0
         while True:
             p = subprocess.Popen("sfdisk -R %s" % device.path,
@@ -84,7 +87,11 @@ class PartitionExpander:
                 break
 
             if attempt >= 5:
-                return -1
+                break
+
+            if hasattr(p, "process"):
+                p.process.wait()
+                p.process.returncode
 
             attempt += 1
             time.sleep(2)
@@ -97,7 +104,7 @@ class PartitionExpander:
                 break
 
             if attempt >= 5:
-                return -1
+                break
 
             attempt += 1
             time.sleep(2)
@@ -105,5 +112,5 @@ class PartitionExpander:
         # Agora da um resize no sistema de arquivos
         # Pegar o tamanho total do dispositivo da partição a ser redimensionada
         size = new_partition.geometry.length * device.sectorSize
-        
+        log.debug(size) 
         return size

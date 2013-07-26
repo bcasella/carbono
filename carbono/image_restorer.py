@@ -223,13 +223,14 @@ class ImageRestorer:
                 log.info("vai expandir")
                 new_size = expander.try_expand()
                 log.info("new_size {0}".format(new_size))
-                #if new_size!= -1:
-                log.info("Expanding {0} filesystem".\
-                             format(partition.get_path()))
-                self.notify_status("format", {"device":
-                                       partition.get_path()})
-                    #partition.filesystem.resize()
-                partition.filesystem.format_filesystem()
+                if new_size!= -1:
+                #log.info("Expanding {0} filesystem".\
+                #             format(partition.get_path()))
+                #self.notify_status("format", {"device":
+                #                       partition.get_path()})
+                    log.debug(partition.filesystem)
+                    partition.filesystem.resize()
+                #partition.filesystem.format_filesystem()
 
     def stop(self):
         # When restoring only a swap partition, buffer_manager
