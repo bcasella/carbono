@@ -120,11 +120,13 @@ class Ext(Generic):
         if self.check():
             proc = subprocess.Popen([which("resize2fs"), self.path],
                                     stdout=subprocess.PIPE)
+            proc.wait()
             output = proc.stdout.read()
             output = output.strip()
-            if output == 0:
-                return True
-        return False
+            returncode = proc.returncode
+            if returncode == 0:
+                return returncode, True
+        return returncode, False
         
     def read_label(self):
         proc = subprocess.Popen([which("e2label"), self.path],

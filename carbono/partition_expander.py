@@ -18,10 +18,9 @@ class PartitionExpander:
 
     def try_expand(self):
         """ """
-        log.debug("Try expand")
         device = parted.Device(self.path)
         disk = parted.Disk(device)
-
+        
         try:
             last_partition = disk.partitions[-1]
         except IndexError:
@@ -34,14 +33,6 @@ class PartitionExpander:
         if last_partition.type != parted.PARTITION_NORMAL:
             log.error("The partition must be primary")
             return -1
-
-        #if last_partition.fileSystem is not None:
-        #    if last_partition.fileSystem.type != "ntfs":
-        #        log.error("We only support ntfs filesystem for now")
-        #        return -1
-        #else:
-        #    log.error("The partititon has no filesystem")
-        #    return -1
 
         if last_partition.fileSystem is None:
             log.error("The Partition, has no Filesystem")
@@ -88,11 +79,7 @@ class PartitionExpander:
                 break
 
             if attempt >= 5:
-                break
-
-            if hasattr(p, "process"):
-                p.process.wait()
-                p.process.returncode
+                return -1
 
             attempt += 1
             time.sleep(2)
@@ -101,11 +88,12 @@ class PartitionExpander:
         # temos que esperar o dispositivo ficar pronto
         attempt = 0
         while True:
+             
             if os.path.exists(new_partition.path):
                 break
 
             if attempt >= 5:
-                break
+                return -1
 
             attempt += 1
             time.sleep(2)
