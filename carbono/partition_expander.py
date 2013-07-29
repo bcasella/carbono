@@ -87,7 +87,7 @@ class PartitionExpander:
             if not len(p.stderr.readlines()):
                 break
 
-            if attempt >= 10:
+            if attempt >= 5:
                 break
 
             if hasattr(p, "process"):
@@ -104,7 +104,7 @@ class PartitionExpander:
             if os.path.exists(new_partition.path):
                 break
 
-            if attempt >= 10:
+            if attempt >= 5:
                 break
 
             attempt += 1

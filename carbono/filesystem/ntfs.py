@@ -107,8 +107,8 @@ class Ntfs(Generic):
             output = proc.stdout.read()
             output = output.strip()
             if output == 0:
-                return True
-        return False
+                return output, True
+        return output, False
 
     def read_label(self):
         proc = subprocess.Popen([which("ntfslabel"), "--force", self.path],

@@ -230,8 +230,8 @@ class ImageRestorer:
                                  format(partition.get_path()))
                     self.notify_status("expand", {"device":
                                            partition.get_path()})
-                    result = partition.filesystem.resize()
-                    log.info("Result of expanding {0} is {1}".format(partition.get_path(), result))
+                    output,result = partition.filesystem.resize()
+                    log.info("{0}".format(output))
                 #partition.filesystem.format_filesystem()
 
     def stop(self):
