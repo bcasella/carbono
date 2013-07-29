@@ -42,8 +42,9 @@ class PartitionExpander:
         #else:
         #    log.error("The partititon has no filesystem")
         #    return -1
+
         if last_partition.fileSystem is None:
-            log.error("The last Partition, is not typed")
+            log.error("The Partition, has no Filesystem")
             return -1
         
         # Recria a última partição do disco utilizando
@@ -75,7 +76,7 @@ class PartitionExpander:
 
         # Após criar a tabela de partição temos que fazer
         # com o kernel releia essa tabela. Será preciso
-        # fazer isso para dar continuidade ao processoi
+        # fazer isso para dar continuidade ao processo
         attempt = 0
         while True:
             p = subprocess.Popen("sfdisk -R %s" % device.path,
@@ -86,7 +87,7 @@ class PartitionExpander:
             if not len(p.stderr.readlines()):
                 break
 
-            if attempt >= 5:
+            if attempt >= 10:
                 break
 
             if hasattr(p, "process"):
@@ -103,7 +104,7 @@ class PartitionExpander:
             if os.path.exists(new_partition.path):
                 break
 
-            if attempt >= 5:
+            if attempt >= 10:
                 break
 
             attempt += 1
@@ -112,5 +113,5 @@ class PartitionExpander:
         # Agora da um resize no sistema de arquivos
         # Pegar o tamanho total do dispositivo da partição a ser redimensionada
         size = new_partition.geometry.length * device.sectorSize
-        log.debug(size) 
+ 
         return size

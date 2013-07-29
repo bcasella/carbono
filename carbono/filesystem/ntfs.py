@@ -90,14 +90,14 @@ class Ntfs(Generic):
         self.process.run()
         return not self.process.wait()
 
-    #def format_filesystem(self):
-    #    proc = subprocess.Popen([which("mkfs.ntfs"), "--fast {0}".format(self.path)],
-    #                            stdout=subprocess.PIPE)
-    #    output = proc.stdout.read()
-    #    output = output.strip()
-    #    if output == 0:
-    #        return True
-    #    return False    
+    def format_filesystem(self):
+        proc = subprocess.Popen([which("mkfs.ntfs"), "--fast {0}".format(self.path)],
+                                stdout=subprocess.PIPE)
+        output = proc.stdout.read()
+        output = output.strip()
+        if output == 0:
+            return True
+        return False    
 
     def resize(self):
     

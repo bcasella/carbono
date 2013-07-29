@@ -220,16 +220,18 @@ class ImageRestorer:
         if partition is not None:
             if partition.type == PARTITION_NORMAL:
                 expander = PartitionExpander(partition.get_path())
-                log.info("vai expandir")
+                log.info("checking and try expand {0}".format(partition.get_path()))
+                self.notify_status("expand", {"device":
+                                       partition.get_path()})
                 new_size = expander.try_expand()
                 log.info("new_size {0}".format(new_size))
                 if new_size!= -1:
-                #log.info("Expanding {0} filesystem".\
-                #             format(partition.get_path()))
-                #self.notify_status("format", {"device":
-                #                       partition.get_path()})
-                    log.debug(partition.filesystem)
-                    partition.filesystem.resize()
+                    log.info("Expanding {0} filesystem".\
+                                 format(partition.get_path()))
+                    self.notify_status("expand", {"device":
+                                           partition.get_path()})
+                    result = partition.filesystem.resize()
+                    log.info("Result of expanding {0} is {1}".format(partition.get_path(), result))
                 #partition.filesystem.format_filesystem()
 
     def stop(self):
