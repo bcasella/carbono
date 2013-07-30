@@ -38,10 +38,10 @@ class PartitionExpander:
             log.error("The partition hasn't filesystem")
             return -1
 
-        if last_partition.fileSystem is not None:
-            if last_partition.fileSystem.type != "ntfs":
-	            log.error("We only support ntfs filesystem for now")
-	            return -1
+        #if last_partition.fileSystem is not None:
+        #    if last_partition.fileSystem.type != "ntfs":
+	    #        log.error("We only support ntfs filesystem for now")
+	    #        return -1
 
         # Recria a última partição do disco utilizando
         # todo o espaço que desalocado
