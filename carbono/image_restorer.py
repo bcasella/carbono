@@ -225,14 +225,21 @@ class ImageRestorer:
                                        partition.get_path()})
                 new_size = expander.try_expand()
                 log.info("new_size {0}".format(new_size))
-                if new_size!= -1:
-                    log.info("Expanding {0} filesystem".\
-                                 format(partition.get_path()))
-                    self.notify_status("expand", {"device":
-                                           partition.get_path()})
-                    output,result = partition.filesystem.resize()
-                    log.info("{0}".format(result))
-                #partition.filesystem.format_filesystem()
+
+                if partition.fileSystem.type == "ntfs":
+                    if new_size!= -1:
+                        log.info("Expanding {0} filesystem".\
+                                     format(partition.get_path()))
+                        self.notify_status("expand", {"device":
+                                               partition.get_path()})
+                        output,result = partition.filesystem.resize()
+                else:
+                    log.info("Formating last partition {0} typed as {1}".format(partition.get_path(), partition.fileSystem.type))
+                    returncode = partition.filesystem.format_filesystem()
+                    if returncode == 0:
+                        log.info("Formatation in {0} was made with sucess".format(partition.get_path()))
+                    else:
+                        log.info("Formatation in {0} failed".format(partition.get_path()))
 
     def stop(self):
         # When restoring only a swap partition, buffer_manager

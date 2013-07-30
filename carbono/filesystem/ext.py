@@ -110,7 +110,8 @@ class Ext(Generic):
                                 stdout=subprocess.PIPE)
         output = proc.stdout.read()
         output = output.strip()
-        if output == 0:
+        returncode = proc.returncode
+        if returncode == 0:
             return True
         return False    
     
