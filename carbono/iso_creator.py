@@ -115,13 +115,14 @@ class IsoCreator:
 
                 # Bootloader
                 self.slices[volume].append("/usr/lib/syslinux/isolinux.bin")
-
+                self.slices[volume].append("{0}image.info".format(
+                                           self.target_path))
                 if self.is_disk:
                     # Add the rest of files needed to
                     # restore the image
                     map(lambda x: self.slices[volume].\
                         append(self.target_path + x),
-                        ("mbr.bin", "disk.dl","image.info"))
+                        ("mbr.bin", "disk.dl"))
                         
             if first_volume:
                 extra_params = "-joliet-long -b " + \
