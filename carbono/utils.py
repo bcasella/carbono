@@ -21,6 +21,7 @@ import multiprocessing
 import random
 import errno
 import os
+import parted
 
 from threading import Thread, Event
 from os.path import realpath
@@ -138,15 +139,89 @@ def available_memory(percent=100):
 
     return free
 
+def get_devices():
+    disk_dict = {}
+    devices = parted.getAllDevices() 
+    for device in devices: 
+        dev_path = device.path
+        try:
+            disk = parted.Disk(device)
+        except:
+            continue
+        part_dict = {}
+        for p in disk.partitions:
+            part_path = p.path
+            part_type = "unkown"
+            if p.fileSystem:
+                part_type = p.fileSystem.type
+            if part_type == "fat32" or part_type == "fat16":
+                part_dict[part_path] = {"type":part_type}
+                disk_dict[dev_path] = {"partitions": part_dict}
+    return disk_dict
+
+CARBONO_FILES2 = ("initram.gz","vmlinuz","isolinux.cfg")
+
+def mount_pen(device):
+    tmpd = make_temp_dir()
+    ret = run_simple_command("mount {0} {1}".format(device, tmpd))
+    if ret is not 0:
+        raise ErrorMountingFilesystem
+    return tmpd
+
+def find_carbono(path):
+    dev_files = os.listdir(path)
+    ret = True
+    if filter(lambda x:not x in dev_files, CARBONO_FILES2):
+        ret = False
+    return ret 
+
+
+def mount_point(device):
+    mounts = {}
+    for line in subprocess.check_output(['mount', '-l']).split('\n'):
+        parts = line.split(' ')
+        if len(parts) > 2:
+            mounts[parts[0]] = parts[2]
+    try:
+        if mounts[device]:
+            return mounts[device]
+        else:
+            raise ErrorWithoutConnectedDevice("Sem Pen-Drive conectado")
+    except:
+        raise ErrorIdentifyDevice("Erro na identificação do Pendrive")
+
+def get_upimage_device():
+    devices = get_devices() 
+    for dev in devices:
+        device = devices[dev]["partitions"].keys()
+        if is_mounted(device[0]):
+            mount_path = mount_point(device[0]) 
+        else:
+            mount_path = mount_pen(device[0])
+        ret = find_carbono(mount_path)
+        if ret:
+            run_simple_command("umount {0}".format(mount_path))
+            return device[0], mount_path
+        else:
+            if ret == 0:
+                run_simple_command("umount {0}".format(mount_path))
+    return -1,-1
+
 def get_cdrom_device():
     device = None
-    with open("/proc/sys/dev/cdrom/info", 'r') as f:
-        for line in f:
-            if line.startswith("drive name:"):
-                try:
-                    device = "/dev/" + line.split()[2]
-                except IndexError:
-                    break
+    path = None
+    try:
+        device,path = get_upimage_device()
+    except:
+        pass
+    if (device and path) == -1:
+        with open("/proc/sys/dev/cdrom/info", 'r') as f:
+            for line in f:
+                if line.startswith("drive name:"):
+                    try:
+                        device = "/dev/" + line.split()[2]
+                    except IndexError:
+                        continue
     return device
 
 def which(program):
