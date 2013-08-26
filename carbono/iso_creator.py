@@ -21,6 +21,7 @@ import errno
 from carbono.utils import *
 from carbono.exception import *
 from carbono.config import *
+from carbono.log import log
 
 CARBONO_FILES = ("initram.gz", "vmlinuz", "isolinux.cfg")
 
@@ -83,11 +84,13 @@ class IsoCreator:
 
             if first_volume:
                 device = get_cdrom_device()
+                log.debug("Os device que tem o upimage eh {0}".format(device))
                 while True:
                     error = False
 
                     try:
                         self.mount_point = self.mount_device(device)
+                        log.debug("O Local que foi montado eh {0}".format(self.mount_point))
                     except ErrorMountingFilesystem:
                         error = True
 
@@ -96,7 +99,6 @@ class IsoCreator:
                             run_simple_command("umount {0}".\
                                                format(self.mount_point))
                             error = True
-
                     if error:
                         device = self.notify_callback("base_files_not_found",
                                                      {"device": device})
