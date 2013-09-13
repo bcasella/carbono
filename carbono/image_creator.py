@@ -17,7 +17,7 @@
 
 import math
 import os
-
+import time
 from carbono.device import Device
 from carbono.disk import Disk
 from carbono.mbr import Mbr
@@ -65,6 +65,22 @@ class ImageCreator:
         if percent > self.current_percent:
             self.current_percent = percent
             self.notify_status("progress", {"percent": percent})
+
+
+        global OLD_PERCENT
+        global CURRENT_PARTITION_TYPE
+        global SUCESS_PARTCLONE
+
+        if (SUCESS_PARTCLONE == False) and (percent > 100) and (percent == OLD_PERCENT) and (CURRENT_PARTITION_TYPE != 'ntfs'):
+            log.info(CURRENT_PARTITION_TYPE)
+            time.sleep(18)
+            cmd = "kill -9 $(ps ax|grep '{0} -c -s {1} -o -'|awk '{2}')".format('/usr/sbin/partclone.extfs',self.device_path, '{print $1}')
+            try:
+                self.process = RunCmd(cmd)
+                self.process.run()
+            except Exception as e:
+                log.info(e)
+        OLD_PERCENT = percent  
 
     def create_image(self):
         """ """
@@ -135,7 +151,8 @@ class ImageCreator:
             uuid = part.filesystem.uuid()
             label = part.filesystem.read_label()
             type = part.filesystem.type
-
+            global CURRENT_PARTITION_TYPE
+            CURRENT_PARTITION_TYPE = type
             part.filesystem.open_to_read()
 
             compact_callback = None
@@ -229,6 +246,8 @@ class ImageCreator:
             self.notify_status("canceled", {"operation": 
                                             "Create image"})
         else:
+            global SUCESS_PARTCLONE
+            SUCESS_PARTCLONE = True
             self.notify_status("finish")
             log.info("Creation finished")
 

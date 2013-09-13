@@ -100,6 +100,10 @@ class Ext(Generic):
     def check(self):
         ret = run_simple_command("{0} -f -y -v {1}".format(which("e2fsck"),
                                                            self.path))
+        proc = subprocess.Popen([which("resize2fs"), self.path],
+                                stdout=subprocess.PIPE)
+        output = proc.stdout.read()
+        output = output.strip()
         if ret in (0, 1, 2, 256):
             return True
         return False
@@ -110,8 +114,7 @@ class Ext(Generic):
                                 stdout=subprocess.PIPE)
         output = proc.stdout.read()
         output = output.strip()
-        returncode = proc.returncode
-        if returncode == 0:
+        if output == 0:
             return True
         return False    
     
@@ -121,13 +124,11 @@ class Ext(Generic):
         if self.check():
             proc = subprocess.Popen([which("resize2fs"), self.path],
                                     stdout=subprocess.PIPE)
-            proc.wait()
             output = proc.stdout.read()
             output = output.strip()
-            returncode = proc.returncode
-            if returncode == 0:
-                return returncode, True
-        return returncode, False
+            if output == 0:
+                return True
+        return False
         
     def read_label(self):
         proc = subprocess.Popen([which("e2label"), self.path],
