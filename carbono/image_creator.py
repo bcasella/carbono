@@ -96,7 +96,7 @@ class ImageCreator:
             mbr.save_to_file(self.device_path)
             dlm = DiskLayoutManager(self.target_path)
             dlm.save_to_file(disk)
-        
+
         partition_list = disk.get_valid_partitions(self.raw)
         if not partition_list:
             raise ErrorCreatingImage("Partition(s) hasn't a " +\
@@ -192,8 +192,14 @@ class ImageCreator:
                                 slices[iso_volume] = list()
                             slices[iso_volume].append(file_path)
                         break
+                    try:
+                        fd.write(data)
+                    except Exception as e:
+                        log.info("Erro na escrita do disco {0}".format(e))
+                        self.notify_status("disk_full")
+                        self.cancel()
+                        break
 
-                    fd.write(data)
                     self.processed_blocks += 1
 
                     if self.split_size:
