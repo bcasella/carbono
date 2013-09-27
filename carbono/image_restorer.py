@@ -37,7 +37,7 @@ class ImageRestorer:
 
     def __init__(self, image_folder, target_device,
                  status_callback, partitions=None,
-                 expand=False):
+                 expand=2):
 
         assert check_if_root(), "You need to run this application as root"
 
@@ -107,7 +107,10 @@ class ImageRestorer:
             mbr = Mbr(self.image_path)
             mbr.restore_from_file(self.target_device)
             dlm = DiskLayoutManager(self.image_path)
-            dlm.restore_from_file(disk, self.expand)
+            if self.expand != 2:
+                dlm.restore_from_file(disk, True)
+            else:
+                dlm.restore_from_file(disk, False)
 
         self.timer.start()
         for part in partitions:
@@ -190,10 +193,11 @@ class ImageRestorer:
             partition.filesystem.close()
 
         self.timer.stop()
+        log.info(self.expand)
 
-        if self.expand:
+        if self.expand != 2:
             if information.get_image_is_disk():
-                self.expand_last_partition()
+                self.expand_last_partition(self.expand)
 
         if self.canceled:
             self.notify_status("canceled", {"operation": 
@@ -209,7 +213,7 @@ class ImageRestorer:
         except Exception as e:
             log.error("Erro ao iniciar grubinstall. {0}".format(e))
 
-    def expand_last_partition(self):
+    def expand_last_partition(self,opt_expand):
         # After all data is copied to the disk
         # we instance class again to reload
         
@@ -224,16 +228,22 @@ class ImageRestorer:
                 new_size = expander.try_expand()
                 log.info("new_size {0}".format(new_size))
                 if new_size!= -1:
-                    log.info("Expanding {0} filesystem".\
-                                 format(partition.get_path()))
-                    self.notify_status("expand", {"device":
-                                           partition.get_path()})
-                    returncode,result = partition.filesystem.resize()
-                    if returncode == 0:
-                        log.info("Resize in {0} was made with sucess".format(partition.get_path()))
-                    else:
-                        log.info("Resize in {0} failed".format(partition.get_path()))
 
+                    if opt_expand == 0:
+                        log.info("Expanding {0} filesystem".format(partition.get_path()))
+                        self.notify_status("expand", {"device":
+                                               partition.get_path()})
+                        returncode = partition.filesystem.resize()
+                        if returncode == 0:
+                            log.info("Resize in {0} was made with sucess".format(partition.get_path()))
+                        else:
+                            log.info("Resize in {0} failed".format(partition.get_path()))
+                    else:
+                        if opt_expand == 1:
+                            log.info("Formating {0} filesystem".format(partition.get_path()))
+                            self.notify_status("format", {"device":
+                                                   partition.get_path()})
+                            partition.filesystem.format_filesystem()
     def stop(self):
         # When restoring only a swap partition, buffer_manager
         # isnt necessary
