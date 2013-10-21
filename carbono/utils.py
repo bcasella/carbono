@@ -33,15 +33,15 @@ class DiskInfo():
 
     def __init__(self):
         self.__DISK_DICT = {}
-        self.__PARTITION_DICT = {}    
+        self.__PARTITION_DICT = {}
 
     def __get_devices(self):
         ''' Filter = only partitions with a valid filesystem '''
-        
+
         disk_dict = {}
         devices = parted.getAllDevices()
         for device in devices:
-            dev_path = device.path 
+            dev_path = device.path
             dev_model = device.model
             dev_size = device.getSize('b')
             try:
@@ -53,7 +53,7 @@ class DiskInfo():
             for p in disk.partitions:
 
                 if p.type not in (parted.PARTITION_NORMAL,
-                                  parted.PARTITION_LOGICAL): 
+                                  parted.PARTITION_LOGICAL):
                     continue
 
                 part_path = p.path
@@ -69,18 +69,17 @@ class DiskInfo():
                                    "size": dev_size,
                                    "partitions": part_dict}
         return disk_dict
-    
 
 
     def __collect_information_about_devices(self):
-        ''' 
+        '''
         Pega informacoes sobre os discos e particoes,
         todas as telas que precisarem de informacoes sobre discos ou particoes
         pegam elas dos dicionarios aqui criados
         '''
         _dict = self.__get_devices()
-        for disk in _dict:                       
-            partitions = _dict[disk]["partitions"].keys() 
+        for disk in _dict:
+            partitions = _dict[disk]["partitions"].keys()
             for part in partitions:
                 self.__PARTITION_DICT[part] = {"type": _dict[disk]["partitions"][part]["type"],
                                              "size": _dict[disk]["partitions"][part]["size"]}
@@ -93,14 +92,14 @@ class DiskInfo():
         formated_partitions = []
         formated_partitions_dict = {}
         self.__collect_information_about_devices()
-        for part in self.__PARTITION_DICT.keys(): 
-            
+        for part in self.__PARTITION_DICT.keys():
+
             part_type = self.__PARTITION_DICT[part]['type']
-            size_bytes = self.__PARTITION_DICT[part]['size'] 
-            size_mb = int(long(size_bytes)/(1024*1024.0))            
+            size_bytes = self.__PARTITION_DICT[part]['size']
+            size_mb = int(long(size_bytes)/(1024*1024.0))
             part_dict = {}
             part_dict["type"] = part_type
-            part_dict["path"] = part            
+            part_dict["path"] = part
             part_dict["size"] = size_mb
             formated_partitions.append(part_dict)
 
@@ -120,6 +119,50 @@ class DiskInfo():
         return(formated_partitions_dict)
 
 
+
+
+class DiskPartition():
+
+
+    def __init__(self):
+
+        self.__temp_folder = ""
+        self.__partition = ""
+
+    def __generate_temp_folder(self, destino = "/tmp/"):
+
+        #Do generate the temp folder
+        self.__temp_folder = "pasta gerada"
+
+    def __set_partition(self, partition):
+
+        self.__partition = partition
+
+    def get_partition(self):
+
+        return self.__partition
+
+    def umount_partition(self):
+        pass
+        #desmonta self.__partition
+
+    def umount_all_partitions(self):
+        pass
+
+    def mount_partition(self,destino = None):
+
+        mounted_folder = ""
+        if destino is None:
+            pass
+            #gera pasta temporario
+        else:
+            pass
+            #monta no destino
+        return mounted_folder
+
+    def get_mounted_devices(self):
+
+        pass
 
 
 class Timer(Thread):
@@ -236,8 +279,8 @@ def available_memory(percent=100):
 
 def get_devices():
     disk_dict = {}
-    devices = parted.getAllDevices() 
-    for device in devices: 
+    devices = parted.getAllDevices()
+    for device in devices:
         dev_path = device.path
         try:
             disk = parted.Disk(device)
@@ -268,7 +311,7 @@ def find_carbono(path):
     ret = True
     if filter(lambda x:not x in dev_files, CARBONO_FILES2):
         ret = False
-    return ret 
+    return ret
 
 
 def mount_point(device):
@@ -286,11 +329,11 @@ def mount_point(device):
         raise ErrorIdentifyDevice("Erro na identificação do Pendrive")
 
 def get_upimage_device():
-    devices = get_devices() 
+    devices = get_devices()
     for dev in devices:
         device = devices[dev]["partitions"].keys()
         if is_mounted(device[0]):
-            mount_path = mount_point(device[0]) 
+            mount_path = mount_point(device[0])
         else:
             mount_path = mount_pen(device[0])
         ret = find_carbono(mount_path)
@@ -350,12 +393,12 @@ def check_if_root():
     if os.getuid() == 0:
         return True
     return False
-    
+
 def verify_4k(hd = "sda"):
     '''
     Retorna o tamanho fisico do setor
     '''
-    try:       
+    try:
         f = open("/sys/block/{0}/queue/physical_block_size".format(hd))
         block = f.readline()
         if "4096" in block:
@@ -364,5 +407,5 @@ def verify_4k(hd = "sda"):
         return(512)
     except Exception as e:
         #nao tem HD (uma vm sem hd, por exemplo)
-        return(512)    
-    
+        return(512)
+
