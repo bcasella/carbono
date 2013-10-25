@@ -124,15 +124,16 @@ class DiskInfo():
 class DiskPartition():
 
 
-    def __init__(self):
+    def __init__(self, partition = ""):
 
         self.__temp_folder = ""
-        self.__partition = ""
+        self.__partition = partition
 
     def __generate_temp_folder(self, destino = "/tmp/"):
+        
+        self.__temp_folder = adjust_path(tempfile.mkdtemp())
 
-        #Do generate the temp folder
-        self.__temp_folder = "pasta gerada"
+        return self.__temp_folder
 
     def __set_partition(self, partition):
 
@@ -142,28 +143,98 @@ class DiskPartition():
 
         return self.__partition
 
-    def umount_partition(self):
-        pass
-        #desmonta self.__partition
+    def umount_partition(self, device = None):
+        disk_mounted = self.get_mounted_devices()
+        disk_list = []
+        result_disk_umounted = {}
+        if self.__partition not in disk_mounted.keys():
+            return "{0} is already umounted".format(self.__partition)
+        else:
+            disk_list = disk_mounted[self.__partition]
+            for item in disk_list:
+                cmd = "umount {0}".format(item)
+                p = subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE, shell=True)
+                ret = os.waitpid(p.pid,0)[1]
+                if not ret:
+                    result_disk_umounted[item] = 0
+                    print "A particao {0} foi desmontada do diretorio {1}".format(self.__partition, item)
+                else:
+                    result_disk_umounted[item] = -1 
+                    print "A particao {0} montada em {1} nao foi desmontada".format(self.__partition,item)
+        return result_disk_umounted
 
     def umount_all_partitions(self):
-        pass
+        disk_mounted = self.get_mounted_devices()
+        result_part_umounted = {}
+        result_disk_umounted = {}
+        disk_list = []
+        for item in disk_mounted.keys():
+            disk_list = disk_mounted[item]
+            result_part_umounted = {}
+            for part in  disk_list:    
+                cmd = "umount {0}".format(item)
+                p = subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE, shell=True)
+                ret = os.waitpid(p.pid,0)[1]
+                if not ret:
+                    result_part_umounted[part] = 0
+                else:
+                    result_part_umounted[part] = -1 
+            result_disk_umounted[item] = result_part_umounted  
+        return result_disk_umounted
 
+        
     def mount_partition(self,destino = None):
 
         mounted_folder = ""
         if destino is None:
-            pass
-            #gera pasta temporario
+            mounted_folder = adjust_path(tempfile.mkdtemp())
+            cmd = "mount {0} {1}".format(self.__partition, mounted_folder)
+            p = subprocess.Popen(cmd,stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            ret = os.waitpid(p.pid,0)[1]
+            if not ret:
+                return mounted_folder
+            else:
+                return False
+
         else:
-            pass
-            #monta no destino
-        return mounted_folder
+            cmd = "mount {0} {1}".format(self.__partition, destino)
+            p = subprocess.Popen(cmd,stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            ret = os.waitpid(p.pid,0)[1]
+            if not ret:
+                return destino
+            else:
+                return False
 
-    def get_mounted_devices(self):
+    def get_mount_point(self, device = None):
+        if device is not None:
+            mounted_dest = self.get_mounted_devices()
+            if device not in mounted_dest.keys():
+                return False
+            else:
+                return mounted_dest[device]
+        else:
+            return False
 
-        pass
-
+    def get_mounted_devices(self, device = None):
+        disk_mounted = {}
+        list_dest = []
+        mount_command = subprocess.check_output(['mount','-l']).split('\n')
+        for lines in mount_command:
+            line = lines.split(' ')
+            if line[0].startswith('/dev/sd'):
+                if line[0] not in disk_mounted.keys():
+                    list_dest = []
+                    list_dest.append(line[2])
+                    disk_mounted[line[0]] = list_dest
+                    list_dest = []
+                else:
+                    list_dest = []
+                    for element in xrange(len(disk_mounted[line[0]])):
+                        list_dest.append(disk_mounted[line[0]][element])
+                    list_dest.append(line[2])
+                    disk_mounted[line[0]] = list_dest
+                    list_dest = []
+        return disk_mounted
 
 class Timer(Thread):
     def __init__(self, callback, timeout=2):
