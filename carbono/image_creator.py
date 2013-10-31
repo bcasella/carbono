@@ -18,6 +18,7 @@
 import math
 import os
 import time
+import shutil
 from carbono.device import Device
 from carbono.disk import Disk
 from carbono.mbr import Mbr
@@ -195,8 +196,15 @@ class ImageCreator:
                     try:
                         fd.write(data)
                     except Exception as e:
-                        log.info("Erro na escrita do disco {0}".format(e))
+                        log.info("{0}".format(e))
                         self.notify_status("disk_full")
+                        try:
+                            shutil.rmtree(self.target_path)
+                            log.info("The folder which cointain the images files were erased")
+                            break
+                        except Exception as e:
+                            log.info(e)
+                            break 
                         self.cancel()
                         break
 
