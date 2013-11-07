@@ -249,9 +249,9 @@ class ImageRestorer:
         if partition is not None:
             if partition.type == PARTITION_NORMAL:
                 expander = PartitionExpander(device.path)
-                log.info("checking and try expand {0}".format(partition.get_path()))
+                log.info("Checking and try expand {0}".format(partition.get_path()))
                 new_size = expander.try_expand()
-                log.info("new_size {0}".format(new_size))
+                log.info("The new_size of the disk will be {0}".format(new_size))
                 if new_size!= -1:
 
                     if opt_expand == 0:
@@ -259,7 +259,7 @@ class ImageRestorer:
                         self.notify_status("expand", {"device":
                                                partition.get_path()})
                         returncode = partition.filesystem.resize()
-                        if returncode == 0:
+                        if returncode == True:
                             log.info("Resize in {0} was made with sucess".format(partition.get_path()))
                         else:
                             log.info("Resize in {0} failed".format(partition.get_path()))

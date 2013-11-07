@@ -100,7 +100,8 @@ class Ntfs(Generic):
         return False    
 
     def resize(self):
-    
+        
+        returncode = -1
         if self.check():
             proc = subprocess.Popen([which("ntfsresize"), self.path],
                                     stdout=subprocess.PIPE)
@@ -108,9 +109,10 @@ class Ntfs(Generic):
             output = proc.stdout.read()
             output = output.strip()
             returncode = proc.returncode
+            
             if returncode == 0:
-                return returncode, True
-        return returncode, False
+                return True
+        return False
 
     def read_label(self):
         proc = subprocess.Popen([which("ntfslabel"), "--force", self.path],

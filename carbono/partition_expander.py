@@ -52,10 +52,17 @@ class PartitionExpander:
         disk.removePartition(last_partition)
 
         new_geometry = None
-        for region in disk.getFreeSpaceRegions():
-            if region.start == start:
-                new_geometry = region
-
+        if (len(disk.getFreeSpaceRegions()) == 1):
+            new_geometry = disk.getFreeSpaceRegions()[0]
+            new_geometry.start = start
+        else:
+            new_geometry = None
+            for region in disk.getFreeSpaceRegions():
+                if region.start == start:
+                    new_geometry = region
+                if (start > region.start and start < region.end):
+                    new_geometry = region
+                    new_geometry.start = start
         constraint = parted.Constraint(exactGeom=new_geometry)
         new_partition = parted.Partition(disk = disk,
                                          type = parted.PARTITION_NORMAL,
