@@ -30,6 +30,7 @@ from carbono.buffer_manager import BufferManagerFactory
 from carbono.exception import *
 from carbono.utils import *
 from carbono.config import *
+
 from carbono.log import log
 from partition_expander import PartitionExpander
 
@@ -103,6 +104,17 @@ class ImageRestorer:
                 raise ErrorRestoringImage("Unrecognized disk label")
 
         if information.get_image_is_disk():
+            #Get total disk target size
+            disk_size = get_disk_size(self.target_device)
+            if (total_bytes > disk_size):
+                log.info("Total size of image is {0}".format(total_bytes))
+                log.info("Total size of {0} is {1}".format(self.target_device,disk_size))
+                log.error("The size of {0} is {1}, is not enough to apply the selected image".format(self.target_device, disk_size))
+                disk_space_info = []
+                disk_space_info.append(total_bytes)
+                disk_space_info.append(disk_size)
+                self.notify_status("no_enough_space", {"disk_minimum_size":disk_space_info})
+                raise ErrorRestoringImage("No enough space on disk")
             log.info("Restoring MBR and Disk Layout")
             mbr = Mbr(self.image_path)
             mbr.restore_from_file(self.target_device)
@@ -111,7 +123,21 @@ class ImageRestorer:
                 dlm.restore_from_file(disk, True)
             else:
                 dlm.restore_from_file(disk, False)
-
+        else:
+            parent_path = get_parent_path(self.target_device)
+            parent_device = Device(parent_path)
+            parent_disk = Disk(parent_device)
+            partition = parent_disk.get_partition_by_path(
+                                        self.target_device,
+                                        part.type)
+            part_size = partition.getSize('b')
+            if (total_bytes > part_size):
+                 part_space_info = []
+                 part_space_info.append(total_bytes)
+                 part_space_info.append(part_size)
+                 log.error("The partition selected is smaller than the image")
+                 self.notify_status("no_enough_space_part", {"disk_minimum_size":part_space_info})
+                 raise ErrorRestoringImage("No enought space on partition")
         self.timer.start()
         for part in partitions:
             if not self.active: break
@@ -193,7 +219,6 @@ class ImageRestorer:
             partition.filesystem.close()
 
         self.timer.stop()
-        log.info(self.expand)
 
         if self.expand != 2:
             if information.get_image_is_disk():
