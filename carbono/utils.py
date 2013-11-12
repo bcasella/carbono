@@ -35,6 +35,10 @@ class DiskInfo():
         self.__DISK_DICT = {}
         self.__PARTITION_DICT = {}
 
+      #  self.disk_info = {"/dev/sda":{"size":123123124,
+      #                                "label":model:self.__DISK_DICT,
+      #                                "partitions":[]}
+
     def __get_devices(self):
         ''' Filter = only partitions with a valid filesystem '''
 
@@ -51,7 +55,6 @@ class DiskInfo():
 
             part_dict = {}
             for p in disk.partitions:
-
                 if p.type not in (parted.PARTITION_NORMAL,
                                   parted.PARTITION_LOGICAL):
                     continue
@@ -90,10 +93,11 @@ class DiskInfo():
 
     def formated_partitions(self):
         formated_partitions = []
-        formated_partitions_dict = {}
+        formated_partitions_dict = self.__DISK_DICT
         self.__collect_information_about_devices()
-        for part in self.__PARTITION_DICT.keys():
 
+        device_info = {"size":None,"label":None,"partitions":None}
+        for part in self.__PARTITION_DICT.keys():
             part_type = self.__PARTITION_DICT[part]['type']
             size_bytes = self.__PARTITION_DICT[part]['size']
             size_mb = int(long(size_bytes)/(1024*1024.0))
@@ -111,13 +115,12 @@ class DiskInfo():
             if temp_disk == disk:
                 temp_parts.append(formated_partitions[aux])
             else:
-                formated_partitions_dict[disk] = temp_parts
-                disk = temp_disk
+                formated_partitions_dict[disk]["partitions"] = temp_parts
                 temp_parts = []
-        formated_partitions_dict[disk] = temp_parts
-
+                temp_parts.append(formated_partitions[aux])
+                disk = temp_disk
+        formated_partitions_dict[disk]["partitions"] = temp_parts
         return(formated_partitions_dict)
-
 
 
 
@@ -130,7 +133,7 @@ class DiskPartition():
         self.__partition = partition
 
     def __generate_temp_folder(self, destino = "/tmp/"):
-        
+
         self.__temp_folder = adjust_path(tempfile.mkdtemp())
 
         return self.__temp_folder
@@ -159,7 +162,7 @@ class DiskPartition():
                     result_disk_umounted[item] = 0
                     print "A particao {0} foi desmontada do diretorio {1}".format(self.__partition, item)
                 else:
-                    result_disk_umounted[item] = -1 
+                    result_disk_umounted[item] = -1
                     print "A particao {0} montada em {1} nao foi desmontada".format(self.__partition,item)
         return result_disk_umounted
 
@@ -171,18 +174,18 @@ class DiskPartition():
         for item in disk_mounted.keys():
             disk_list = disk_mounted[item]
             result_part_umounted = {}
-            for part in  disk_list:    
+            for part in  disk_list:
                 cmd = "umount {0}".format(item)
                 p = subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE, shell=True)
                 ret = os.waitpid(p.pid,0)[1]
                 if not ret:
                     result_part_umounted[part] = 0
                 else:
-                    result_part_umounted[part] = -1 
-            result_disk_umounted[item] = result_part_umounted  
+                    result_part_umounted[part] = -1
+            result_disk_umounted[item] = result_part_umounted
         return result_disk_umounted
 
-        
+
     def mount_partition(self,destino = None):
 
         mounted_folder = ""
