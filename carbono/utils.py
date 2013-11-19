@@ -294,6 +294,13 @@ def run_simple_command(cmd):
     p.wait()
     return p.returncode
 
+def get_disk_size(path):
+    devices = parted.getAllDevices() 
+    for device in devices:
+        if (device.path == path):
+            return device.getSize('b')
+    return False
+
 def random_string(length=5):
     return ''.join([random.choice(tempfile._RandomNameSequence.characters) \
                    for i in range(length)])
