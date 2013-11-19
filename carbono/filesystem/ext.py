@@ -124,9 +124,10 @@ class Ext(Generic):
         if self.check():
             proc = subprocess.Popen([which("resize2fs"), self.path],
                                     stdout=subprocess.PIPE)
+            proc.wait()
             output = proc.stdout.read()
             output = output.strip()
-            if output == 0:
+            if proc.returncode == 0:
                 return True
         return False
         
