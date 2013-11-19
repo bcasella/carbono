@@ -191,7 +191,7 @@ class DiskPartition():
         mounted_folder = self.get_mount_point(self.__partition)
 
         if mounted_folder:
-            return mounted_folder
+            return mounted_folder[0]
 
         mounted_folder = ""
 
