@@ -188,7 +188,13 @@ class DiskPartition():
 
     def mount_partition(self,destino = None):
 
+        mounted_folder = self.get_mount_point(self.__partition)
+
+        if mounted_folder:
+            return mounted_folder
+
         mounted_folder = ""
+
         if destino is None:
             mounted_folder = adjust_path(tempfile.mkdtemp())
             cmd = "mount {0} {1}".format(self.__partition, mounted_folder)
@@ -295,7 +301,7 @@ def run_simple_command(cmd):
     return p.returncode
 
 def get_disk_size(path):
-    devices = parted.getAllDevices() 
+    devices = parted.getAllDevices()
     for device in devices:
         if (device.path == path):
             return device.getSize('b')
