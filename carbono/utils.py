@@ -60,7 +60,7 @@ class DiskInfo():
                     continue
 
                 part_path = p.path
-                part_size = p.getSize('b')
+                part_size =1024*1024*int(p.getSize('b'))
                 part_type = "unknown"
                 if p.fileSystem:
                     part_type = p.fileSystem.type
