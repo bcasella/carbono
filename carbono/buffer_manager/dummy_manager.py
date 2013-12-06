@@ -20,6 +20,7 @@ from multiprocessing import Queue
 
 from carbono.utils import *
 from carbono.config import *
+from carbono.log import log
 
 class DummyManager(Thread):
 
@@ -39,14 +40,26 @@ class DummyManager(Thread):
 
     def run(self):
         self.active = True
+        count_read_block = 0
         while self.active:
-            try:
-                data = self.read_block()
+            try: 
+                if get_part_type() == '':
+                    data = self.read_block()
+                else:
+                    if get_part_type() != 'ntfs':
+                        if (get_block_used()+3) >= count_read_block:
+                            count_read_block = count_read_block +1
+                            data = self.read_block()
+                        else:
+                            data = ''
+                    else:
+                        data = self.read_block()
             except ErrorReadingFromDevice, e:
                 self.stop()
                 raise e
 
             if not data:
+                set_part_type('')
                 self.stop()
                 break
             self.put(data)

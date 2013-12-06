@@ -26,6 +26,7 @@ import parted
 from threading import Thread, Event
 from os.path import realpath
 from carbono.exception import *
+from carbono.config import *
 
 
 
@@ -357,8 +358,8 @@ def available_memory(percent=100):
 
 def get_devices():
     disk_dict = {}
-    devices = parted.getAllDevices()
-    for device in devices:
+    devices = parted.getAllDevices() 
+    for device in devices: 
         dev_path = device.path
         try:
             disk = parted.Disk(device)
@@ -389,7 +390,7 @@ def find_carbono(path):
     ret = True
     if filter(lambda x:not x in dev_files, CARBONO_FILES2):
         ret = False
-    return ret
+    return ret 
 
 
 def mount_point(device):
@@ -407,11 +408,11 @@ def mount_point(device):
         raise ErrorIdentifyDevice("Erro na identificação do Pendrive")
 
 def get_upimage_device():
-    devices = get_devices()
+    devices = get_devices() 
     for dev in devices:
         device = devices[dev]["partitions"].keys()
         if is_mounted(device[0]):
-            mount_path = mount_point(device[0])
+            mount_path = mount_point(device[0]) 
         else:
             mount_path = mount_pen(device[0])
         ret = find_carbono(mount_path)
@@ -457,6 +458,25 @@ def which(program):
     raise CommandNotFound("{0}: command not found".\
                           format(program))
 
+def set_block_used(value):
+    global BLOCK_USED
+    BLOCK_USED = value
+    return value
+
+def get_block_used():
+    global BLOCK_USED
+    return BLOCK_USED
+
+global CURRENT_PARTITION_TYPE
+def set_part_type(value):
+    global CURRENT_PARTITION_TYPE
+    CURRENT_PARTITION_TYPE = value
+    return CURRENT_PARTITION_TYPE
+
+def get_part_type():
+    global CURRENT_PARTITION_TYPE
+    return CURRENT_PARTITION_TYPE
+
 def sync():
     run_simple_command("sync")
 
@@ -471,12 +491,12 @@ def check_if_root():
     if os.getuid() == 0:
         return True
     return False
-
+    
 def verify_4k(hd = "sda"):
     '''
     Retorna o tamanho fisico do setor
     '''
-    try:
+    try:       
         f = open("/sys/block/{0}/queue/physical_block_size".format(hd))
         block = f.readline()
         if "4096" in block:
@@ -485,5 +505,5 @@ def verify_4k(hd = "sda"):
         return(512)
     except Exception as e:
         #nao tem HD (uma vm sem hd, por exemplo)
-        return(512)
-
+        return(512)    
+    
