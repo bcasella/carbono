@@ -67,22 +67,6 @@ class ImageCreator:
             self.current_percent = percent
             self.notify_status("progress", {"percent": percent})
 
-
-        global OLD_PERCENT
-        global CURRENT_PARTITION_TYPE
-        global SUCESS_PARTCLONE
-
-        if (SUCESS_PARTCLONE == False) and (percent > 100) and (percent == OLD_PERCENT) and (CURRENT_PARTITION_TYPE != 'ntfs'):
-            log.info(CURRENT_PARTITION_TYPE)
-            time.sleep(18)
-            cmd = "kill -9 $(ps ax|grep '{0} -c -s {1} -o -'|awk '{2}')".format('/usr/sbin/partclone.extfs',self.device_path, '{print $1}')
-            try:
-                self.process = RunCmd(cmd)
-                self.process.run()
-            except Exception as e:
-                log.info(e)
-        OLD_PERCENT = percent  
-
     def create_image(self):
         """ """
         if is_mounted(self.device_path):
@@ -144,9 +128,12 @@ class ImageCreator:
             remaining_size -= BASE_SYSTEM_SIZE
         slices = dict()                  # Used when creating iso
         iso_volume = 1                   # Used when creating iso
+        global BLOCK_USED
         for part in partition_list:
             if not self.active: break
-
+            total_bytes = part.filesystem.get_used_size()
+            BLOCK_USED = long(math.ceil(total_bytes/float(BLOCK_SIZE)))
+            set_block_used(BLOCK_USED)
             log.info("Creating image of {0}".format(part.get_path()))
             number = part.get_number()
             uuid = part.filesystem.uuid()
@@ -154,6 +141,7 @@ class ImageCreator:
             type = part.filesystem.type
             global CURRENT_PARTITION_TYPE
             CURRENT_PARTITION_TYPE = type
+            set_part_type(type)
             part.filesystem.open_to_read()
 
             compact_callback = None
@@ -260,8 +248,6 @@ class ImageCreator:
             self.notify_status("canceled", {"operation": 
                                             "Create image"})
         else:
-            global SUCESS_PARTCLONE
-            SUCESS_PARTCLONE = True
             self.notify_status("finish")
             log.info("Creation finished")
 

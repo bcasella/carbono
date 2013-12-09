@@ -18,8 +18,7 @@
 
 import os
 
-SUCESS_PARTCLONE = False
-OLD_PERCENT = -2
+BLOCK_USED = 0
 CURRENT_PARTITION_TYPE = ""
 FILE_PATTERN = "{name}-{partition}-{volume}.data"
 BLOCK_SIZE = 1048576 # 1MB

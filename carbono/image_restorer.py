@@ -219,6 +219,7 @@ class ImageRestorer:
             partition.filesystem.close()
 
         self.timer.stop()
+        log.info(self.expand)
 
         if self.expand != 2:
             if information.get_image_is_disk():
