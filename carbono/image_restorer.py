@@ -115,14 +115,25 @@ class ImageRestorer:
                 disk_space_info.append(disk_size)
                 self.notify_status("no_enough_space", {"disk_minimum_size":disk_space_info})
                 raise ErrorRestoringImage("No enough space on disk")
+
             log.info("Restoring MBR and Disk Layout")
             mbr = Mbr(self.image_path)
-            mbr.restore_from_file(self.target_device)
+            try:
+                mbr.restore_from_file(self.target_device)
+            except Exception as e:
+                log.error("Error to restore the Mbr file")
+                image_path = self.image_path.split("/")[3] + "/mbr.bin"
+                self.notify_status("file_not_found",{"file_not_found":image_path})
             dlm = DiskLayoutManager(self.image_path)
-            if self.expand != 2:
-                dlm.restore_from_file(disk, True)
-            else:
-                dlm.restore_from_file(disk, False)
+            try:
+                if self.expand != 2:
+                    dlm.restore_from_file(disk, True)
+                else:
+                    dlm.restore_from_file(disk, False)
+            except Exception as e:
+                    log.error("Error to restore the disk.dl file")
+                    image_path = self.image_path.split("/")[3] + "/disk.dl"
+                    self.notify_status("file_not_found",{"file_not_found":image_path})  
         else:
             parent_path = get_parent_path(self.target_device)
             parent_device = Device(parent_path)
@@ -138,6 +149,7 @@ class ImageRestorer:
                  log.error("The partition selected is smaller than the image")
                  self.notify_status("no_enough_space_part", {"disk_minimum_size":part_space_info})
                  raise ErrorRestoringImage("No enought space on partition")
+
         self.timer.start()
         for part in partitions:
             if not self.active: break
@@ -219,7 +231,6 @@ class ImageRestorer:
             partition.filesystem.close()
 
         self.timer.stop()
-        log.info(self.expand)
 
         if self.expand != 2:
             if information.get_image_is_disk():
@@ -230,14 +241,15 @@ class ImageRestorer:
                                             "Restore image"})
         else:
             self._finish()
-        log.info("Restoration finished")
-        log.info("Iniciando gtk grubinstall")
-        cmd = "{0}".format(which("grubinstall"))
-        try:
-            self.process = RunCmd(cmd)
-            self.process.run()
-        except Exception as e:
-            log.error("Erro ao iniciar grubinstall. {0}".format(e))
+            log.info("Restoration finished")
+            log.info("Iniciando gtk grubinstall")
+            cmd = "{0}".format(which("grubinstall"))
+            try:
+                self.process = RunCmd(cmd)
+                self.process.run()
+                self.process.wait()
+            except Exception as e:
+                log.error("Erro ao iniciar grubinstall. {0}".format(e))
 
     def expand_last_partition(self,opt_expand):
         # After all data is copied to the disk
