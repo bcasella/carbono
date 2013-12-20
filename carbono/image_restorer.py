@@ -68,6 +68,8 @@ class ImageRestorer:
     def restore_image(self):
         """ """
         if is_mounted(self.target_device):
+            log.error("The partition {0} is mounted, please umount first, and try again".format(self.target_device))
+            self.notify_status("mounted_partition_error",{"mounted_partition_error":self.target_device})
             raise DeviceIsMounted("Please umount first")
 
         self.active = True
