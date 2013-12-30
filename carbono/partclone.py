@@ -33,7 +33,7 @@ from carbono.config import *
 
 from carbono.log import log
 
-class ImageCreator:
+class Partclone:
 
     def __init__(self, source_device, output_folder,
                  status_callback, image_name="image", compressor_level=6,
@@ -60,20 +60,12 @@ class ImageCreator:
         self.current_percent = -1
         self.active = False
         self.canceled = False
-        self.partclone_stderr = None
-        self.partclone_sucess = False
 
     def notify_percent(self):
-        #refresh the interface percentage
         percent = (self.processed_blocks/float(self.total_blocks)) * 100
         if percent > self.current_percent:
             self.current_percent = percent
             self.notify_status("progress", {"percent": percent})
-
-        #verify stderr from parclone 
-        if self.partclone_stderr != None:
-            if self.partclone_stderr.readline().startswith("Partclone successfully cloned the device"):
-                self.partclone_sucess = True
 
     def create_image(self):
         """ """
@@ -121,8 +113,9 @@ class ImageCreator:
         total_bytes = 0
         for part in partition_list:
             total_bytes += part.filesystem.get_used_size()
+       
+        self.total_blocks = long(math.ceil(total_bytes/float(BLOCK_SIZE)))
 
-        self.total_blocks = long(math.ceil(total_bytes/float(BLOCK_SIZE))) 
         information = Information(self.target_path)
         information.set_image_is_disk(device.is_disk())
         information.set_image_name(self.image_name)
@@ -137,7 +130,7 @@ class ImageCreator:
             remaining_size -= BASE_SYSTEM_SIZE
         slices = dict()                  # Used when creating iso
         iso_volume = 1                   # Used when creating iso
-
+        global BLOCK_USED
         for part in partition_list:
             if not self.active: break
             total_bytes = part.filesystem.get_used_size()
@@ -146,11 +139,7 @@ class ImageCreator:
             label = part.filesystem.read_label()
             type = part.filesystem.type
             part.filesystem.open_to_read()
-
-            #check if partclone is running
-            if type in  ("ext2","ext3","ext4"):                
-                self.partclone_stderr = part.filesystem.get_error_ext()
-
+            error_file = part.filesystem.get_error_ext()
             compact_callback = None
             if self.compressor_level:
                 compressor = Compressor(self.compressor_level)
@@ -179,13 +168,8 @@ class ImageCreator:
                         if e.errno == errno.EINTR:
                             self.cancel()
                             break
-
+                    log.info(error_file.read(4096))
                     if data == EOF:
-                        if (self.partclone_stderr != None):
-                            while self.partclone_sucess == False:
-                                time.sleep(0.5)
-                                self.notify_status("waiting_partclone")
-                                time.sleep(0.5)
                         next_partition = True
                         if self.create_iso:
                             remaining_size -= total_written

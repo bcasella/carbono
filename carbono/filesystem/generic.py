@@ -28,6 +28,7 @@ class Generic:
         self.type = type
         self.geometry = geometry
         self._fd = None
+        self.fderr = None
         self.process = None
 
     def get_size(self):

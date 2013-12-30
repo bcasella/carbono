@@ -458,25 +458,6 @@ def which(program):
     raise CommandNotFound("{0}: command not found".\
                           format(program))
 
-def set_block_used(value):
-    global BLOCK_USED
-    BLOCK_USED = value
-    return value
-
-def get_block_used():
-    global BLOCK_USED
-    return BLOCK_USED
-
-global CURRENT_PARTITION_TYPE
-def set_part_type(value):
-    global CURRENT_PARTITION_TYPE
-    CURRENT_PARTITION_TYPE = value
-    return CURRENT_PARTITION_TYPE
-
-def get_part_type():
-    global CURRENT_PARTITION_TYPE
-    return CURRENT_PARTITION_TYPE
-
 def sync():
     run_simple_command("sync")
 

@@ -18,8 +18,6 @@
 
 import os
 
-BLOCK_USED = 0
-CURRENT_PARTITION_TYPE = ""
 FILE_PATTERN = "{name}-{partition}-{volume}.data"
 BLOCK_SIZE = 1048576 # 1MB
 BASE_SYSTEM_SIZE = 0 #TODO (in bytes)
