@@ -45,7 +45,7 @@ class GenericReader:
                     self._fd = open(file_path, 'rb')
                 else:
                     self.image_path = self.notify_callback("file_not_found",
-                    {"path": self.image_path, "file": file_pattern})
+                    {"path": self.image_path, "file": file_pattern, "current_volume": self.current_volume})
 
                     if self.image_path:
                         self.image_path = adjust_path(self.image_path)
