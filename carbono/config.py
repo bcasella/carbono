@@ -20,7 +20,7 @@ import os
 
 FILE_PATTERN = "{name}-{partition}-{volume}.data"
 BLOCK_SIZE = 1048576 # 1MB
-BASE_SYSTEM_SIZE = 0 #TODO (in bytes)
+BASE_SYSTEM_SIZE = 1024 * 1024 * 250 #Em bytes. TODO: pegar tamanho real
 LOG_FILE = "/var/log/mstech/carbono.log"
 EOF = -1
 VERSION = (0, 1, 0, "alpha", 0)
