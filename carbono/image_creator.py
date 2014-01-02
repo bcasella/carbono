@@ -62,6 +62,7 @@ class ImageCreator:
         self.canceled = False
         self.partclone_stderr = None
         self.partclone_sucess = False
+        self.data_is_eof = False
 
     def notify_percent(self):
         #refresh the interface percentage
@@ -70,10 +71,20 @@ class ImageCreator:
             self.current_percent = percent
             self.notify_status("progress", {"percent": percent})
 
-        #verify stderr from parclone 
+        #verify stderr from partclone 
         if self.partclone_stderr != None:
-            if self.partclone_stderr.readline().startswith("Partclone successfully cloned the device"):
+            partclone_status = self.partclone_stderr.readline()
+            if partclone_status.startswith("Partclone successfully cloned the device"):
                 self.partclone_sucess = True
+            else:
+                if self.data_is_eof:
+                    part_list = partclone_status.split()
+                    if part_list[0] == "current":
+                        if len(part_list) >= 13:
+                            try:
+                                self.notify_status("waiting_partclone",{"partclone_percent":partclone_status.split()[13].split(",")[0]})
+                            except Exception as e:
+                                log.info(e)
 
     def create_image(self):
         """ """
@@ -183,9 +194,12 @@ class ImageCreator:
                     if data == EOF:
                         if (self.partclone_stderr != None):
                             while self.partclone_sucess == False:
-                                time.sleep(0.5)
-                                self.notify_status("waiting_partclone")
-                                time.sleep(0.5)
+                                self.data_is_eof = True 
+
+                        self.partclone_stderr = None
+                        self.partclone_sucess = False
+                        self.data_is_eof = False
+
                         next_partition = True
                         if self.create_iso:
                             remaining_size -= total_written
