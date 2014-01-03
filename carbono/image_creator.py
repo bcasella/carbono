@@ -151,7 +151,8 @@ class ImageCreator:
 
         for part in partition_list:
             if not self.active: break
-            total_bytes = part.filesystem.get_used_size()
+
+            log.info("Creating image of {0}".format(part.get_path()))
             number = part.get_number()
             uuid = part.filesystem.uuid()
             label = part.filesystem.read_label()
@@ -193,8 +194,9 @@ class ImageCreator:
 
                     if data == EOF:
                         if (self.partclone_stderr != None):
+                            self.data_is_eof = True
                             while self.partclone_sucess == False:
-                                self.data_is_eof = True 
+                                pass 
 
                         self.partclone_stderr = None
                         self.partclone_sucess = False
