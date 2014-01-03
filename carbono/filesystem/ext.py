@@ -58,6 +58,7 @@ class Ext(Generic):
             self.process = RunCmd(cmd)
             self.process.run()
             self._fd = self.process.stdout
+            self.fderr = self.process.stderr 
         except:
             raise ErrorOpenToRead("Cannot open {0} to read".format(self.path))
 
