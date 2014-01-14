@@ -30,6 +30,76 @@ from carbono.config import *
 
 
 
+
+class HalInfo():
+    '''
+    Get info of the disk using HAL
+    '''
+    
+    def __init__(self):
+        self.external_devices = []
+
+    def get_storages_udis(self):
+        '''
+        Get the dbus path of all disk(/dev/sda)
+        Returns a list
+        '''
+        out,err,ret = run_simple_command_echo('{0} --capability "storage"'.format(
+                            which('hal-find-by-capability')),False)
+
+        return out.split()
+
+
+    def get_volumes_udis(self):
+        '''
+        Get the dbus path  of all devices (/dev/sda1)
+        Returns a list
+        '''
+        out,err,ret = run_simple_command_echo('{0} --capability "volume"'.format(
+                            which('hal-find-by-capability')),False)
+
+
+        return out.split()
+
+
+    def is_storage_removable(self, storage_udi):
+        '''Verifies if given udi is a removable storage'''
+        out,err,ret = run_simple_command_echo('{0} --udi {1} \
+                             --key storage.removable'.format(
+                             which('hal-get-property'),storage_udi), False)
+        if 'true' in out:
+            return True
+        return False
+
+
+    def get_block_device(self, udi):
+        '''
+        Get the block of the given udi
+        Returns /dev/sda or /dev/sda1, for example
+        '''
+        out,err,ret = run_simple_command_echo('{0} --udi {1} \
+                             --key block.device'.format(
+                             which('hal-get-property'),udi), False
+                             )
+        return out
+
+
+    def get_external_devices(self):
+        storages_udis = self.get_storages_udis()
+        volumes_udis = self.get_volumes_udis()
+        for s in storages_udis:
+            if self.is_storage_removable(s):
+                device = self.get_block_device(s).split()[0]
+                if "sr" in device:
+                    self.external_devices.append(device)
+                else:
+                    for v in volumes_udis:
+                        vol = self.get_block_device(v).split()[0]
+                        if device in vol:
+                            self.external_devices.append(vol)
+        return self.external_devices
+
+
 class DiskInfo():
 
     def __init__(self):
@@ -301,6 +371,22 @@ def run_simple_command(cmd):
     p.wait()
     return p.returncode
 
+def run_simple_command_echo(cmd, echo=False):
+    ''' 
+    run a given command
+    returns the output, errors (if any) and returncode
+    '''    
+    if echo:
+        print "{0}".format(cmd)
+    p = subprocess.Popen(cmd, shell=True,
+                         stdout=subprocess.PIPE,
+                         stdin=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+    p.wait()
+    output, err = p.communicate()
+    ret = p.returncode
+    return output,err,ret
+
 def get_disk_size(path):
     devices = parted.getAllDevices()
     for device in devices:
@@ -367,8 +453,8 @@ def available_memory(percent=100):
 
 def get_devices():
     disk_dict = {}
-    devices = parted.getAllDevices() 
-    for device in devices: 
+    devices = parted.getAllDevices()
+    for device in devices:
         dev_path = device.path
         try:
             disk = parted.Disk(device)
@@ -399,7 +485,7 @@ def find_carbono(path):
     ret = True
     if filter(lambda x:not x in dev_files, CARBONO_FILES2):
         ret = False
-    return ret 
+    return ret
 
 
 def mount_point(device):
@@ -417,11 +503,11 @@ def mount_point(device):
         raise ErrorIdentifyDevice("Erro na identificação do Pendrive")
 
 def get_upimage_device():
-    devices = get_devices() 
+    devices = get_devices()
     for dev in devices:
         device = devices[dev]["partitions"].keys()
         if is_mounted(device[0]):
-            mount_path = mount_point(device[0]) 
+            mount_path = mount_point(device[0])
         else:
             mount_path = mount_pen(device[0])
         ret = find_carbono(mount_path)
@@ -478,15 +564,15 @@ def is_mounted(device):
     return False
 
 def check_if_root():
-    if os.getuid() == 0:
+    if os.getudi() == 0:
         return True
     return False
-    
+
 def verify_4k(hd = "sda"):
     '''
     Retorna o tamanho fisico do setor
     '''
-    try:       
+    try:
         f = open("/sys/block/{0}/queue/physical_block_size".format(hd))
         block = f.readline()
         if "4096" in block:
@@ -495,5 +581,5 @@ def verify_4k(hd = "sda"):
         return(512)
     except Exception as e:
         #nao tem HD (uma vm sem hd, por exemplo)
-        return(512)    
-    
+        return(512)
+
