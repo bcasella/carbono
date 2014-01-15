@@ -564,7 +564,7 @@ def is_mounted(device):
     return False
 
 def check_if_root():
-    if os.getudi() == 0:
+    if os.getuid() == 0:
         return True
     return False
 
