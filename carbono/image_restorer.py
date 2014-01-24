@@ -30,6 +30,7 @@ from carbono.buffer_manager import BufferManagerFactory
 from carbono.exception import *
 from carbono.utils import *
 from carbono.config import *
+
 from carbono.log import log
 from partition_expander import PartitionExpander
 
@@ -67,6 +68,8 @@ class ImageRestorer:
     def restore_image(self):
         """ """
         if is_mounted(self.target_device):
+            log.error("The partition {0} is mounted, please umount first, and try again".format(self.target_device))
+            self.notify_status("mounted_partition_error",{"mounted_partition_error":self.target_device})
             raise DeviceIsMounted("Please umount first")
 
         self.active = True
@@ -103,14 +106,51 @@ class ImageRestorer:
                 raise ErrorRestoringImage("Unrecognized disk label")
 
         if information.get_image_is_disk():
+            #Get total disk target size
+            disk_size = get_disk_size(self.target_device)
+            if (total_bytes > disk_size):
+                log.info("Total size of image is {0}".format(total_bytes))
+                log.info("Total size of {0} is {1}".format(self.target_device,disk_size))
+                log.error("The size of {0} is {1}, is not enough to apply the selected image".format(self.target_device, disk_size))
+                disk_space_info = []
+                disk_space_info.append(total_bytes)
+                disk_space_info.append(disk_size)
+                self.notify_status("no_enough_space", {"disk_minimum_size":disk_space_info})
+                raise ErrorRestoringImage("No enough space on disk")
+
             log.info("Restoring MBR and Disk Layout")
             mbr = Mbr(self.image_path)
-            mbr.restore_from_file(self.target_device)
+            try:
+                mbr.restore_from_file(self.target_device)
+            except Exception as e:
+                log.error("Error to restore the Mbr file")
+                image_path = self.image_path.split("/")[3] + "/mbr.bin"
+                self.notify_status("file_not_found",{"file_not_found":image_path})
             dlm = DiskLayoutManager(self.image_path)
-            if self.expand != 2:
-                dlm.restore_from_file(disk, True)
-            else:
-                dlm.restore_from_file(disk, False)
+            try:
+                if self.expand != 2:
+                    dlm.restore_from_file(disk, True)
+                else:
+                    dlm.restore_from_file(disk, False)
+            except Exception as e:
+                    log.error("Error to restore the disk.dl file")
+                    image_path = self.image_path.split("/")[3] + "/disk.dl"
+                    self.notify_status("file_not_found",{"file_not_found":image_path})  
+        else:
+            parent_path = get_parent_path(self.target_device)
+            parent_device = Device(parent_path)
+            parent_disk = Disk(parent_device)
+            partition = parent_disk.get_partition_by_path(
+                                        self.target_device,
+                                        part.type)
+            part_size = partition.getSize('b')
+            if (total_bytes > part_size):
+                 part_space_info = []
+                 part_space_info.append(total_bytes)
+                 part_space_info.append(part_size)
+                 log.error("The partition selected is smaller than the image")
+                 self.notify_status("no_enough_space_part", {"disk_minimum_size":part_space_info})
+                 raise ErrorRestoringImage("No enought space on partition")
 
         self.timer.start()
         for part in partitions:
@@ -193,7 +233,6 @@ class ImageRestorer:
             partition.filesystem.close()
 
         self.timer.stop()
-        log.info(self.expand)
 
         if self.expand != 2:
             if information.get_image_is_disk():
@@ -204,14 +243,15 @@ class ImageRestorer:
                                             "Restore image"})
         else:
             self._finish()
-        log.info("Restoration finished")
-        log.info("Iniciando gtk grubinstall")
-        cmd = "{0}".format(which("grubinstall"))
-        try:
-            self.process = RunCmd(cmd)
-            self.process.run()
-        except Exception as e:
-            log.error("Erro ao iniciar grubinstall. {0}".format(e))
+            log.info("Restoration finished")
+            log.info("Iniciando gtk grubinstall")
+            cmd = "{0}".format(which("grubinstall"))
+            try:
+                self.process = RunCmd(cmd)
+                self.process.run()
+                self.process.wait()
+            except Exception as e:
+                log.error("Erro ao iniciar grubinstall. {0}".format(e))
 
     def expand_last_partition(self,opt_expand):
         # After all data is copied to the disk
@@ -224,9 +264,9 @@ class ImageRestorer:
         if partition is not None:
             if partition.type == PARTITION_NORMAL:
                 expander = PartitionExpander(device.path)
-                log.info("checking and try expand {0}".format(partition.get_path()))
+                log.info("Checking and try expand {0}".format(partition.get_path()))
                 new_size = expander.try_expand()
-                log.info("new_size {0}".format(new_size))
+                log.info("The new_size of the disk will be {0}".format(new_size))
                 if new_size!= -1:
 
                     if opt_expand == 0:
@@ -234,10 +274,12 @@ class ImageRestorer:
                         self.notify_status("expand", {"device":
                                                partition.get_path()})
                         returncode = partition.filesystem.resize()
-                        if returncode == 0:
+                        if returncode == True:
                             log.info("Resize in {0} was made with sucess".format(partition.get_path()))
                         else:
                             log.info("Resize in {0} failed".format(partition.get_path()))
+                            self.notify_status("expand_last_partition_error", {"last_partition":partition.get_path()})
+                            self.canceled = True
                     else:
                         if opt_expand == 1:
                             log.info("Formating {0} filesystem".format(partition.get_path()))

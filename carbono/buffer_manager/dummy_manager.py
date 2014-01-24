@@ -20,6 +20,7 @@ from multiprocessing import Queue
 
 from carbono.utils import *
 from carbono.config import *
+from carbono.log import log
 
 class DummyManager(Thread):
 
@@ -40,12 +41,7 @@ class DummyManager(Thread):
     def run(self):
         self.active = True
         while self.active:
-            try:
-                data = self.read_block()
-            except ErrorReadingFromDevice, e:
-                self.stop()
-                raise e
-
+            data = self.read_block()
             if not data:
                 self.stop()
                 break

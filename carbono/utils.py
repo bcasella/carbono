@@ -26,6 +26,295 @@ import parted
 from threading import Thread, Event
 from os.path import realpath
 from carbono.exception import *
+from carbono.config import *
+
+
+
+
+class HalInfo():
+    '''
+    Get info of the disk using HAL
+    '''
+    
+    def __init__(self):
+        self.external_devices = []
+
+    def get_storages_udis(self):
+        '''
+        Get the dbus path of all disk(/dev/sda)
+        Returns a list
+        '''
+        out,err,ret = run_simple_command_echo('{0} --capability "storage"'.format(
+                            which('hal-find-by-capability')),False)
+
+        return out.split()
+
+
+    def get_volumes_udis(self):
+        '''
+        Get the dbus path  of all devices (/dev/sda1)
+        Returns a list
+        '''
+        out,err,ret = run_simple_command_echo('{0} --capability "volume"'.format(
+                            which('hal-find-by-capability')),False)
+
+
+        return out.split()
+
+
+    def is_storage_removable(self, storage_udi):
+        '''Verifies if given udi is a removable storage'''
+        out,err,ret = run_simple_command_echo('{0} --udi {1} \
+                             --key storage.removable'.format(
+                             which('hal-get-property'),storage_udi), False)
+        if 'true' in out:
+            return True
+        return False
+
+
+    def get_block_device(self, udi):
+        '''
+        Get the block of the given udi
+        Returns /dev/sda or /dev/sda1, for example
+        '''
+        out,err,ret = run_simple_command_echo('{0} --udi {1} \
+                             --key block.device'.format(
+                             which('hal-get-property'),udi), False
+                             )
+        return out
+
+
+    def get_external_devices(self):
+        storages_udis = self.get_storages_udis()
+        volumes_udis = self.get_volumes_udis()
+        for s in storages_udis:
+            if self.is_storage_removable(s):
+                device = self.get_block_device(s).split()[0]
+                if "sr" in device:
+                    self.external_devices.append(device)
+                else:
+                    for v in volumes_udis:
+                        vol = self.get_block_device(v).split()[0]
+                        if device in vol:
+                            self.external_devices.append(vol)
+        return self.external_devices
+
+
+class DiskInfo():
+
+    def __init__(self):
+        self.__DISK_DICT = {}
+        self.__PARTITION_DICT = {}
+
+      #  self.disk_info = {"/dev/sda":{"size":123123124,
+      #                                "label":model:self.__DISK_DICT,
+      #                                "partitions":[]}
+
+    def __get_devices(self):
+        ''' Filter = only partitions with a valid filesystem '''
+
+        disk_dict = {}
+        devices = parted.getAllDevices()
+        for device in devices:
+            dev_path = device.path
+            dev_model = device.model
+            dev_size = device.getSize('b')
+            try:
+                disk = parted.Disk(device)
+            except:
+                continue
+
+            part_dict = {}
+            for p in disk.partitions:
+                if p.type not in (parted.PARTITION_NORMAL,
+                                  parted.PARTITION_LOGICAL):
+                    continue
+
+                part_path = p.path
+                part_size =1024*1024*int(p.getSize('b'))
+                part_type = "unknown"
+                if p.fileSystem:
+                    part_type = p.fileSystem.type
+
+                part_dict[part_path] = {"size": part_size,
+                                        "type": part_type}
+
+            disk_dict[dev_path] = {"model": dev_model,
+                                   "size": dev_size,
+                                   "partitions": part_dict}
+        return disk_dict
+
+
+    def __collect_information_about_devices(self):
+        '''
+        Pega informacoes sobre os discos e particoes,
+        todas as telas que precisarem de informacoes sobre discos ou particoes
+        pegam elas dos dicionarios aqui criados
+        '''
+        _dict = self.__get_devices()
+        for disk in _dict:
+            partitions = _dict[disk]["partitions"].keys()
+            for part in partitions:
+                self.__PARTITION_DICT[part] = {"type": _dict[disk]["partitions"][part]["type"],
+                                             "size": _dict[disk]["partitions"][part]["size"]}
+            self.__DISK_DICT[disk] = {"model": _dict[disk]["model"],
+                                    "size": _dict[disk]["size"],
+                                    "partitions": partitions}
+
+
+    def formated_partitions(self):
+        formated_partitions = []
+        formated_partitions_dict = self.__DISK_DICT
+        self.__collect_information_about_devices()
+
+        device_info = {"size":None,"label":None,"partitions":None}
+        for part in self.__PARTITION_DICT.keys():
+            part_type = self.__PARTITION_DICT[part]['type']
+            size_bytes = self.__PARTITION_DICT[part]['size']
+            size_mb = int(long(size_bytes)/(1024*1024.0))
+            part_dict = {}
+            part_dict["type"] = part_type
+            part_dict["path"] = part
+            part_dict["size"] = size_mb
+            formated_partitions.append(part_dict)
+
+        formated_partitions.sort(reverse=False)
+        temp_parts = []
+        disk = formated_partitions[0]['path'][:8]
+        for aux in range(0,len(formated_partitions)):
+            temp_disk = formated_partitions[aux]['path'][:8]
+            if temp_disk == disk:
+                temp_parts.append(formated_partitions[aux])
+            else:
+                formated_partitions_dict[disk]["partitions"] = temp_parts
+                temp_parts = []
+                temp_parts.append(formated_partitions[aux])
+                disk = temp_disk
+        formated_partitions_dict[disk]["partitions"] = temp_parts
+        return(formated_partitions_dict)
+
+
+
+class DiskPartition():
+
+
+    def __init__(self, partition = ""):
+
+        self.__temp_folder = ""
+        self.__partition = partition
+
+    def __generate_temp_folder(self, destino = "/tmp/"):
+
+        self.__temp_folder = adjust_path(tempfile.mkdtemp())
+
+        return self.__temp_folder
+
+    def __set_partition(self, partition):
+
+        self.__partition = partition
+
+    def get_partition(self):
+
+        return self.__partition
+
+    def umount_partition(self, device = None):
+        disk_mounted = self.get_mounted_devices()
+        disk_list = []
+        result_disk_umounted = {}
+        if self.__partition not in disk_mounted.keys():
+            return "{0} is already umounted".format(self.__partition)
+        else:
+            disk_list = disk_mounted[self.__partition]
+            for item in disk_list:
+                cmd = "umount {0}".format(item)
+                p = subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE, shell=True)
+                ret = os.waitpid(p.pid,0)[1]
+                if not ret:
+                    result_disk_umounted[item] = 0
+                    print "A particao {0} foi desmontada do diretorio {1}".format(self.__partition, item)
+                else:
+                    result_disk_umounted[item] = -1
+                    print "A particao {0} montada em {1} nao foi desmontada".format(self.__partition,item)
+        return result_disk_umounted
+
+    def umount_all_partitions(self):
+        disk_mounted = self.get_mounted_devices()
+        result_part_umounted = {}
+        result_disk_umounted = {}
+        disk_list = []
+        for item in disk_mounted.keys():
+            disk_list = disk_mounted[item]
+            result_part_umounted = {}
+            for part in  disk_list:
+                cmd = "umount {0}".format(item)
+                p = subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE, shell=True)
+                ret = os.waitpid(p.pid,0)[1]
+                if not ret:
+                    result_part_umounted[part] = 0
+                else:
+                    result_part_umounted[part] = -1
+            result_disk_umounted[item] = result_part_umounted
+        return result_disk_umounted
+
+
+    def mount_partition(self,destino = None):
+
+        mounted_folder = self.get_mount_point(self.__partition)
+
+        if mounted_folder:
+            return mounted_folder[0]
+
+        mounted_folder = ""
+
+        if destino is None:
+            mounted_folder = adjust_path(tempfile.mkdtemp())
+            cmd = "mount {0} {1}".format(self.__partition, mounted_folder)
+            p = subprocess.Popen(cmd,stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            ret = os.waitpid(p.pid,0)[1]
+            if not ret:
+                return mounted_folder
+            else:
+                return False
+
+        else:
+            cmd = "mount {0} {1}".format(self.__partition, destino)
+            p = subprocess.Popen(cmd,stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            ret = os.waitpid(p.pid,0)[1]
+            if not ret:
+                return destino
+            else:
+                return False
+
+    def get_mount_point(self, device = None):
+        if device is not None:
+            mounted_dest = self.get_mounted_devices()
+            if device not in mounted_dest.keys():
+                return False
+            else:
+                return mounted_dest[device]
+        else:
+            return False
+
+    def get_mounted_devices(self, device = None):
+        disk_mounted = {}
+        list_dest = []
+        mount_command = subprocess.check_output(['mount','-l']).split('\n')
+        for lines in mount_command:
+            line = lines.split(' ')
+            if line[0].startswith('/dev/sd'):
+                if line[0] not in disk_mounted.keys():
+                    list_dest = []
+                    list_dest.append(line[2])
+                    disk_mounted[line[0]] = list_dest
+                    list_dest = []
+                else:
+                    list_dest = []
+                    for element in xrange(len(disk_mounted[line[0]])):
+                        list_dest.append(disk_mounted[line[0]][element])
+                    list_dest.append(line[2])
+                    disk_mounted[line[0]] = list_dest
+                    list_dest = []
+        return disk_mounted
 
 class Timer(Thread):
     def __init__(self, callback, timeout=2):
@@ -81,6 +370,29 @@ def run_simple_command(cmd):
                          stderr=subprocess.PIPE)
     p.wait()
     return p.returncode
+
+def run_simple_command_echo(cmd, echo=False):
+    ''' 
+    run a given command
+    returns the output, errors (if any) and returncode
+    '''    
+    if echo:
+        print "{0}".format(cmd)
+    p = subprocess.Popen(cmd, shell=True,
+                         stdout=subprocess.PIPE,
+                         stdin=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+    p.wait()
+    output, err = p.communicate()
+    ret = p.returncode
+    return output,err,ret
+
+def get_disk_size(path):
+    devices = parted.getAllDevices()
+    for device in devices:
+        if (device.path == path):
+            return device.getSize('b')
+    return False
 
 def random_string(length=5):
     return ''.join([random.choice(tempfile._RandomNameSequence.characters) \
@@ -141,8 +453,8 @@ def available_memory(percent=100):
 
 def get_devices():
     disk_dict = {}
-    devices = parted.getAllDevices() 
-    for device in devices: 
+    devices = parted.getAllDevices()
+    for device in devices:
         dev_path = device.path
         try:
             disk = parted.Disk(device)
@@ -173,7 +485,7 @@ def find_carbono(path):
     ret = True
     if filter(lambda x:not x in dev_files, CARBONO_FILES2):
         ret = False
-    return ret 
+    return ret
 
 
 def mount_point(device):
@@ -191,11 +503,11 @@ def mount_point(device):
         raise ErrorIdentifyDevice("Erro na identificação do Pendrive")
 
 def get_upimage_device():
-    devices = get_devices() 
+    devices = get_devices()
     for dev in devices:
         device = devices[dev]["partitions"].keys()
         if is_mounted(device[0]):
-            mount_path = mount_point(device[0]) 
+            mount_path = mount_point(device[0])
         else:
             mount_path = mount_pen(device[0])
         ret = find_carbono(mount_path)
@@ -255,12 +567,12 @@ def check_if_root():
     if os.getuid() == 0:
         return True
     return False
-    
+
 def verify_4k(hd = "sda"):
     '''
     Retorna o tamanho fisico do setor
     '''
-    try:       
+    try:
         f = open("/sys/block/{0}/queue/physical_block_size".format(hd))
         block = f.readline()
         if "4096" in block:
@@ -269,5 +581,5 @@ def verify_4k(hd = "sda"):
         return(512)
     except Exception as e:
         #nao tem HD (uma vm sem hd, por exemplo)
-        return(512)    
-    
+        return(512)
+

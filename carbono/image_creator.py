@@ -18,6 +18,7 @@
 import math
 import os
 import time
+import shutil
 from carbono.device import Device
 from carbono.disk import Disk
 from carbono.mbr import Mbr
@@ -59,32 +60,37 @@ class ImageCreator:
         self.current_percent = -1
         self.active = False
         self.canceled = False
+        self.partclone_stderr = None
+        self.partclone_sucess = False
+        self.data_is_eof = False
 
     def notify_percent(self):
+        #refresh the interface percentage
         percent = (self.processed_blocks/float(self.total_blocks)) * 100
         if percent > self.current_percent:
             self.current_percent = percent
             self.notify_status("progress", {"percent": percent})
 
-
-        global OLD_PERCENT
-        global CURRENT_PARTITION_TYPE
-        global SUCESS_PARTCLONE
-
-        if (SUCESS_PARTCLONE == False) and (percent > 100) and (percent == OLD_PERCENT) and (CURRENT_PARTITION_TYPE != 'ntfs'):
-            log.info(CURRENT_PARTITION_TYPE)
-            time.sleep(18)
-            cmd = "kill -9 $(ps ax|grep '{0} -c -s {1} -o -'|awk '{2}')".format('/usr/sbin/partclone.extfs',self.device_path, '{print $1}')
-            try:
-                self.process = RunCmd(cmd)
-                self.process.run()
-            except Exception as e:
-                log.info(e)
-        OLD_PERCENT = percent  
+        #verify stderr from partclone 
+        if self.partclone_stderr != None:
+            partclone_status = self.partclone_stderr.readline()
+            if partclone_status.startswith("Partclone successfully cloned the device"):
+                self.partclone_sucess = True
+            else:
+                if self.data_is_eof:
+                    part_list = partclone_status.split()
+                    if part_list[0] == "current":
+                        if len(part_list) >= 13:
+                            try:
+                                self.notify_status("waiting_partclone",{"partclone_percent":partclone_status.split()[13].split(",")[0]})
+                            except Exception as e:
+                                log.info(e)
 
     def create_image(self):
         """ """
         if is_mounted(self.device_path):
+            log.error("The partition {0} is mounted, please umount first, and try again".format(self.device_path))
+            self.notify_status("mounted_partition_error",{"mounted_partition_error":self.device_path})
             raise DeviceIsMounted("Please umount first")
 
         self.active = True
@@ -126,9 +132,8 @@ class ImageCreator:
         total_bytes = 0
         for part in partition_list:
             total_bytes += part.filesystem.get_used_size()
-       
-        self.total_blocks = long(math.ceil(total_bytes/float(BLOCK_SIZE)))
 
+        self.total_blocks = long(math.ceil(total_bytes/float(BLOCK_SIZE))) 
         information = Information(self.target_path)
         information.set_image_is_disk(device.is_disk())
         information.set_image_name(self.image_name)
@@ -143,6 +148,7 @@ class ImageCreator:
             remaining_size -= BASE_SYSTEM_SIZE
         slices = dict()                  # Used when creating iso
         iso_volume = 1                   # Used when creating iso
+
         for part in partition_list:
             if not self.active: break
 
@@ -151,9 +157,11 @@ class ImageCreator:
             uuid = part.filesystem.uuid()
             label = part.filesystem.read_label()
             type = part.filesystem.type
-            global CURRENT_PARTITION_TYPE
-            CURRENT_PARTITION_TYPE = type
             part.filesystem.open_to_read()
+
+            #check if partclone is running
+            if type in  ("ext2","ext3","ext4"):                
+                self.partclone_stderr = part.filesystem.get_error_ext()
 
             compact_callback = None
             if self.compressor_level:
@@ -185,6 +193,15 @@ class ImageCreator:
                             break
 
                     if data == EOF:
+                        if (self.partclone_stderr != None):
+                            self.data_is_eof = True
+                            while self.partclone_sucess == False:
+                                pass 
+
+                        self.partclone_stderr = None
+                        self.partclone_sucess = False
+                        self.data_is_eof = False
+
                         next_partition = True
                         if self.create_iso:
                             remaining_size -= total_written
@@ -195,8 +212,15 @@ class ImageCreator:
                     try:
                         fd.write(data)
                     except Exception as e:
-                        log.info("Erro na escrita do disco {0}".format(e))
+                        log.info("{0}".format(e))
                         self.notify_status("disk_full")
+                        try:
+                            shutil.rmtree(self.target_path)
+                            log.info("The folder which cointain the images files were erased")
+                            break
+                        except Exception as e:
+                            log.info(e)
+                            break 
                         self.cancel()
                         break
 
@@ -252,8 +276,6 @@ class ImageCreator:
             self.notify_status("canceled", {"operation": 
                                             "Create image"})
         else:
-            global SUCESS_PARTCLONE
-            SUCESS_PARTCLONE = True
             self.notify_status("finish")
             log.info("Creation finished")
 
