@@ -40,10 +40,6 @@ class ImageCreator:
                  raw=False, split_size=0, create_iso=False,
                  fill_with_zeros=False):
 
-        assert check_if_root(), "You need to run this application as root"
-        assert os.path.isdir(output_folder), "{0} folder is invalid".\
-                                             format(output_folder)
-
         self.image_name = image_name
         self.device_path = source_device
         self.target_path = adjust_path(output_folder)
@@ -63,6 +59,17 @@ class ImageCreator:
         self.partclone_stderr = None
         self.partclone_sucess = False
         self.data_is_eof = False
+
+        if not check_if_root():
+            log.info("You need to run this application as root")
+            self.notify_status("not_root", \
+                              {"not_root":"You dont't have permission"})
+
+        if not os.path.isdir(output_folder):
+            log.info("The folder is invalid")
+            self.notify_status("invalid_folder",\
+                               {"invalid_folder":output_folder})
+            raise InvalidFolder("Invalid folder {0}".format(output_folder))
 
     def notify_percent(self):
         #refresh the interface percentage
@@ -85,6 +92,7 @@ class ImageCreator:
                                 self.notify_status("waiting_partclone",{"partclone_percent":partclone_status.split()[13].split(",")[0]})
                             except Exception as e:
                                 log.info(e)
+                                raise ErrorCreatingImage("Create image wasn't made with success")
 
     def create_image(self):
         """ """
@@ -98,10 +106,16 @@ class ImageCreator:
         disk = Disk(device)
 
         if device.is_disk():
-            mbr = Mbr(self.target_path)
-            mbr.save_to_file(self.device_path)
-            dlm = DiskLayoutManager(self.target_path)
-            dlm.save_to_file(disk)
+            try:
+                mbr = Mbr(self.target_path)
+                mbr.save_to_file(self.device_path)
+                dlm = DiskLayoutManager(self.target_path)
+                dlm.save_to_file(disk)
+            except Exception as e:
+                log.info(e)
+                self.notify_status("write_error", \
+                                   {"write_error":self.target_path})
+                raise ErrorWritingToDevice("Write error in {0}".format(self.target_path))
 
         partition_list = disk.get_valid_partitions(self.raw)
         if not partition_list:
@@ -153,6 +167,8 @@ class ImageCreator:
             if not self.active: break
 
             log.info("Creating image of {0}".format(part.get_path()))
+            self.notify_status("image_creator", \
+                               {"image_creator ": part.get_path()})
             number = part.get_number()
             uuid = part.filesystem.uuid()
             label = part.filesystem.read_label()
@@ -181,13 +197,21 @@ class ImageCreator:
                                               partition=number,
                                               volume=volumes)
                 file_path = self.target_path + pattern
-                fd = open(file_path, "wb")
-
+                try:
+                    fd = open(file_path, "wb")
+                except Exception as e:
+                    log.info(e)
+                    self.notify_status("open_file", \
+                                       {"open_file":file_path})
+                    raise ImageNotFound("The file wasn't found {0}". \
+                                        format(file_path))
                 next_partition = False
                 while self.active:
                     try:
                         data = buffer.get()
                     except IOError, e:
+                        self.notify_status("read_buffer_error", \
+                                   {"read_buffer_error":"Erro buffer"})
                         if e.errno == errno.EINTR:
                             self.cancel()
                             break
@@ -221,8 +245,8 @@ class ImageCreator:
                         except Exception as e:
                             log.info(e)
                             break 
-                        self.cancel()
-                        break
+                        raise ErrorWritingToDevice("Error in write file {0}".\
+                                                   format(file_path))
 
                     self.processed_blocks += 1
 
@@ -239,8 +263,13 @@ class ImageCreator:
                                 slices[iso_volume].append(file_path)
                                 iso_volume += 1
                             break
+                try:
+                    fd.close()
+                except Exception as e:
+                    log.info(e)
+                    self.notify_status("write_error",{"write_error":e})
+                    raise ErrorCloseToWrite("Close Error {0}".format(e))
 
-                fd.close()
                 if next_partition: break
 
             self.buffer_manager.join()
@@ -259,12 +288,20 @@ class ImageCreator:
             uuid = swap.filesystem.uuid()
             type = swap.filesystem.type
             information.add_partition(number, type, 0, 0, uuid)
+        try:
+            information.save()
+        except Exception as e:
+            log.info(e)
+            self.notify_status("write_error",{"write_error":e})
+            raise ErrorWritingToDevice("Write Error {0}".format(e))
 
-        information.save()
         self.stop()
 
         if self.create_iso:
             log.info("Starting create ISO operation")
+            self.notify_status("create_iso", \
+                               {"create_iso":self.create_iso})
+
             iso_creator = IsoCreator(self.target_path, slices,
                                      self.image_name,
                                      self.notify_status,
