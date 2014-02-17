@@ -22,7 +22,8 @@ from carbono.utils import *
 from carbono.exception import *
 from carbono.config import *
 
-CARBONO_FILES = ("initram.gz", "vmlinuz", "isolinux.cfg")
+CARBONO_FILES = ("initram.gz", "vmlinuz")
+
 
 class IsoCreator:
     def __init__(self, target_path, slices,
@@ -37,6 +38,20 @@ class IsoCreator:
         self.timer = Timer(self.notify_percent)
         self.process = None
         self.mount_point = None
+
+    def __generate_isolinux_file(self):
+        isolinux_tmp_file = "/tmp/isolinux.cfg"
+        tmp_file = open(isolinux_tmp_file,"w")
+        tmp_file.write("prompt 0\n"+
+                "     default upimage\n"+
+                "label upimage\n"+
+                "     kernel vmlinuz\n"+
+                "     append initrd=initram.gz rdinit=/sbin/init "+
+                "ramdisk_size=512000\n")
+        tmp_file.close()
+
+        return isolinux_tmp_file
+
 
     def notify_percent(self):
         if self.process is not None:
@@ -61,7 +76,7 @@ class IsoCreator:
               format(device, tmpd))
         if ret is not 0:
             raise ErrorMountingFilesystem
-        return tmpd        
+        return tmpd
 
     def find_carbono_files(self, path):
         dev_files = os.listdir(path)
@@ -108,9 +123,13 @@ class IsoCreator:
 
                     break
 
-                # Add carbono files  
+                # Add carbono files
                 map(lambda x: self.slices[volume].\
                     append(self.mount_point + x), CARBONO_FILES)
+
+                # Add isolinux.cfg file
+                isolinux_file = self.__generate_isolinux_file()
+                self.slices[volume].append(isolinux_file)
 
                 # Bootloader
                 self.slices[volume].append("/usr/lib/syslinux/isolinux.bin")
@@ -122,7 +141,7 @@ class IsoCreator:
                     map(lambda x: self.slices[volume].\
                         append(self.target_path + x),
                         ("mbr.bin", "disk.dl"))
-                        
+
             if first_volume:
                 extra_params = "-joliet-long -b " + \
                 "isolinux.bin -c " + \
