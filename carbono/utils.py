@@ -71,6 +71,14 @@ class HalInfo():
             return True
         return False
 
+    def is_device_fat(self, storage_udi):
+        '''Verifies if given udi '''
+        out,err,ret = run_simple_command_echo('{0} --udi {1} \
+                             --key volume.fstype'.format(
+                             which('hal-get-property'),storage_udi), False)
+        if 'fat' in out:
+            return True
+        return False
 
     def get_block_device(self, udi):
         '''
@@ -87,6 +95,10 @@ class HalInfo():
     def get_external_devices(self):
         storages_udis = self.get_storages_udis()
         volumes_udis = self.get_volumes_udis()
+        for s in volumes_udis:
+            if self.is_device_fat(s):
+                dev = self.get_block_device(s).split()[0]
+                self.external_devices.append(dev)
         for s in storages_udis:
             if self.is_storage_removable(s):
                 device = self.get_block_device(s).split()[0]
@@ -95,7 +107,7 @@ class HalInfo():
                 else:
                     for v in volumes_udis:
                         vol = self.get_block_device(v).split()[0]
-                        if device in vol:
+                        if ( device in vol ) and ( vol not in self.external_devices ):
                             self.external_devices.append(vol)
         return self.external_devices
 
