@@ -205,10 +205,12 @@ class ImageRestorer:
             volumes = 1
             if hasattr(part, "volumes"):
                 volumes = part.volumes
-
-            image_reader = ImageReaderFactory(self.image_path, pattern,
-                                              volumes, compressor_level,
-                                              self.notify_status)
+            try:
+                image_reader = ImageReaderFactory(self.image_path, pattern,
+                                                  volumes, compressor_level,
+                                                  self.notify_status)
+            except Exception as e:
+                log.info(e)
 
             extract_callback = None
             if compressor_level:
