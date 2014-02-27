@@ -239,6 +239,7 @@ class ImageRestorer:
                 try:
                     partition.filesystem.write_block(data)
                 except ErrorWritingToDevice, e:
+                    self.notify_status("write_partition_error")
                     if not self.canceled:
                         self.stop()
                         raise e
