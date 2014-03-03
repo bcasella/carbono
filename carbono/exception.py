@@ -66,3 +66,14 @@ class ExpandingPartitionError(Exception):
 class DeviceIsMounted(Exception):
     pass
 
+class InvalidFolder(Exception):
+    pass
+
+class ErrorOpenToWrite(Exception):
+    pass
+
+class ErrorCloseToWrite(Exception):
+    pass
+
+class ErrorFileNotFound(Exception):
+    pass

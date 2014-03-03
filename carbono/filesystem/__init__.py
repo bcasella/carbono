@@ -53,7 +53,10 @@ class FilesystemFactory:
 
     def open_to_read(self):
         self._fs.open_to_read()
-    
+
+    def get_error_ext(self):
+       return self._fs.fderr
+          
     def open_to_write(self, uuid=None):
         if uuid is not None:
             self._fs.open_to_write(uuid)
