@@ -55,6 +55,12 @@ class ImageRestorer:
         self.active = False
         self.canceled = False
 
+        if not os.path.isdir(self.image_path):
+            log.info("The folder is invalid")
+            self.notify_status("invalid_folder", \
+                               {"invalid_folder":self.image_path})
+            raise InvalidFolder("Invalid folder {0}".format(output_folder))
+
     def notify_percent(self):
         # Total blocks can be 0 when restoring only a swap partition
         # for example
@@ -93,6 +99,8 @@ class ImageRestorer:
         if device.is_disk() != \
            information.get_image_is_disk():
             log.error("Invalid target device %s" % device.path)
+            self.notify_status("write_error", \
+                               {"write_error":device_path})
             raise ErrorRestoringImage("Invalid target device")
 
         try:
@@ -126,6 +134,8 @@ class ImageRestorer:
                 log.error("Error to restore the Mbr file")
                 image_path = self.image_path.split("/")[3] + "/mbr.bin"
                 self.notify_status("file_not_found",{"file_not_found":image_path})
+                raise ErrorFileNotFound("File not Found {0}".format(image_path))
+
             dlm = DiskLayoutManager(self.image_path)
             try:
                 if self.expand != 2:
@@ -135,7 +145,9 @@ class ImageRestorer:
             except Exception as e:
                     log.error("Error to restore the disk.dl file")
                     image_path = self.image_path.split("/")[3] + "/disk.dl"
-                    self.notify_status("file_not_found",{"file_not_found":image_path})  
+                    self.notify_status("file_not_found",{"file_not_found":image_path})
+                    raise ErrorFileNotFound("File not found {0}".format(image_path))
+  
         else:
             parent_path = get_parent_path(self.target_device)
             parent_device = Device(parent_path)
@@ -168,8 +180,12 @@ class ImageRestorer:
                                             part.type)
 
             log.info("Restoring partition {0}".format(partition.get_path()))
+            self.notify_status("restore_partition",\
+                               {"restoring_partition":partition.get_path()})
 
             if partition is None:
+                self.notify_status("no_valid_partitions", \
+                         {"no_valid_partitions":partitions.get_path()})
                 raise ErrorRestoringImage("No valid partitions found")
 
             if hasattr(part, "uuid"):
@@ -189,10 +205,12 @@ class ImageRestorer:
             volumes = 1
             if hasattr(part, "volumes"):
                 volumes = part.volumes
-
-            image_reader = ImageReaderFactory(self.image_path, pattern,
-                                              volumes, compressor_level,
-                                              self.notify_status)
+            try:
+                image_reader = ImageReaderFactory(self.image_path, pattern,
+                                                  volumes, compressor_level,
+                                                  self.notify_status)
+            except Exception as e:
+                log.info(e)
 
             extract_callback = None
             if compressor_level:
@@ -223,6 +241,7 @@ class ImageRestorer:
                 try:
                     partition.filesystem.write_block(data)
                 except ErrorWritingToDevice, e:
+                    self.notify_status("write_partition_error")
                     if not self.canceled:
                         self.stop()
                         raise e

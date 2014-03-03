@@ -51,8 +51,8 @@ class GenericReader:
                         self.image_path = adjust_path(self.image_path)
                         continue
                     else:
-                        self.notify_callback("canceled",
-                                            {"operation": "Restoring image"})
+                        raise Exception("canceled")
+                        break
                 break
 
     def close(self):
