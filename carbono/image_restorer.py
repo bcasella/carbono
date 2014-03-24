@@ -218,6 +218,7 @@ class ImageRestorer:
                 extract_callback = compressor.extract
 
             self.buffer_manager = BufferManagerFactory(image_reader.read_block,
+                                                       self.notify_status,
                                                        extract_callback)
 
             # open the file after instantiating BufferManager, cause of a
@@ -232,7 +233,10 @@ class ImageRestorer:
                     data = buffer.get()
                 except IOError, e:
                     if e.errno == errno.EINTR:
+                        self.notify_status("read_buffer_error",{"read_buffer_error":str(e)})
+                        data = ""
                         self.cancel()
+                        raise ErrorReadingFromDevice(e)
                         break
 
                 if data == EOF:

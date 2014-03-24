@@ -186,6 +186,7 @@ class ImageCreator:
 
             self.buffer_manager = BufferManagerFactory(
                                   part.filesystem.read_block,
+                                  self.notify_status,
                                   compact_callback)
             self.buffer_manager.start()
 
@@ -210,11 +211,16 @@ class ImageCreator:
                     try:
                         data = buffer.get()
                     except IOError, e:
-                        self.notify_status("read_buffer_error", \
-                                   {"read_buffer_error":"Erro buffer"})
+                        #self.notify_status("read_buffer_error", \
+                        #           {"read_buffer_error":str(e)})
                         if e.errno == errno.EINTR:
+                            self.notify_status("read_buffer_error", \
+                                       {"read_buffer_error":str(e)})
+                            data = ""
                             self.cancel()
+                            raise ErrorReadingFromDevice(e)
                             break
+                            
 
                     if data == EOF:
                         if (self.partclone_stderr != None):
