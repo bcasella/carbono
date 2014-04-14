@@ -39,6 +39,10 @@ class ImageRestorer:
     def __init__(self, image_folder, target_device,
                  status_callback, partitions=None,
                  expand=2):
+        # expand -> 0 Expande a ultima particao
+        #        -> 1 Formata a ultima particao
+        #        -> 2 Nenhuma operacao (ele aplica a imagem e nao faz mais nada)
+        #        -> 3 Ele nao aplica a ultima particao
 
         assert check_if_root(), "You need to run this application as root"
 
@@ -147,7 +151,7 @@ class ImageRestorer:
                     image_path = self.image_path.split("/")[3] + "/disk.dl"
                     self.notify_status("file_not_found",{"file_not_found":image_path})
                     raise ErrorFileNotFound("File not found {0}".format(image_path))
-  
+
         else:
             parent_path = get_parent_path(self.target_device)
             parent_device = Device(parent_path)
@@ -165,9 +169,15 @@ class ImageRestorer:
                  raise ErrorRestoringImage("No enought space on partition")
 
         self.timer.start()
+
+        total_partitions = len(partitions)
         for part in partitions:
+            total_partitions -= 1
+
             if not self.active: break
-            
+
+            if (self.expand == 3) and (total_partitions == 0): break
+
             if information.get_image_is_disk():
                 partition = disk.get_partition_by_number(part.number,
                                                          part.type)
@@ -258,7 +268,7 @@ class ImageRestorer:
                 self.expand_last_partition(self.expand)
 
         if self.canceled:
-            self.notify_status("canceled", {"operation": 
+            self.notify_status("canceled", {"operation":
                                             "Restore image"})
         else:
             self._finish()
@@ -275,7 +285,7 @@ class ImageRestorer:
     def expand_last_partition(self,opt_expand):
         # After all data is copied to the disk
         # we instance class again to reload
-        
+
         sync()
         device = Device(self.target_device)
         disk = Disk(device)
