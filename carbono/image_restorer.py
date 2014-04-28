@@ -17,6 +17,8 @@
 
 import math
 import _ped
+import os
+
 from parted import PARTITION_NORMAL
 
 from carbono.device import Device
@@ -39,6 +41,10 @@ class ImageRestorer:
     def __init__(self, image_folder, target_device,
                  status_callback, partitions=None,
                  expand=2):
+        # expand -> 0 Expande a ultima particao
+        #        -> 1 Formata a ultima particao
+        #        -> 2 Nenhuma operacao (ele aplica a imagem e nao faz mais nada)
+        #        -> 3 Ele nao aplica a ultima particao
 
         assert check_if_root(), "You need to run this application as root"
 
@@ -147,7 +153,7 @@ class ImageRestorer:
                     image_path = self.image_path.split("/")[3] + "/disk.dl"
                     self.notify_status("file_not_found",{"file_not_found":image_path})
                     raise ErrorFileNotFound("File not found {0}".format(image_path))
-  
+
         else:
             parent_path = get_parent_path(self.target_device)
             parent_device = Device(parent_path)
@@ -165,9 +171,15 @@ class ImageRestorer:
                  raise ErrorRestoringImage("No enought space on partition")
 
         self.timer.start()
+
+        total_partitions = len(partitions)
         for part in partitions:
+            total_partitions -= 1
+
             if not self.active: break
-            
+
+            if (self.expand == 3) and (total_partitions == 0): break
+
             if information.get_image_is_disk():
                 partition = disk.get_partition_by_number(part.number,
                                                          part.type)
@@ -218,6 +230,7 @@ class ImageRestorer:
                 extract_callback = compressor.extract
 
             self.buffer_manager = BufferManagerFactory(image_reader.read_block,
+                                                       self.notify_status,
                                                        extract_callback)
 
             # open the file after instantiating BufferManager, cause of a
@@ -232,7 +245,10 @@ class ImageRestorer:
                     data = buffer.get()
                 except IOError, e:
                     if e.errno == errno.EINTR:
+                        self.notify_status("read_buffer_error",{"read_buffer_error":str(e)})
+                        data = ""
                         self.cancel()
+                        raise ErrorReadingFromDevice(e)
                         break
 
                 if data == EOF:
@@ -258,7 +274,7 @@ class ImageRestorer:
                 self.expand_last_partition(self.expand)
 
         if self.canceled:
-            self.notify_status("canceled", {"operation": 
+            self.notify_status("canceled", {"operation":
                                             "Restore image"})
         else:
             self._finish()
@@ -266,16 +282,14 @@ class ImageRestorer:
             log.info("Iniciando gtk grubinstall")
             cmd = "{0}".format(which("grubinstall"))
             try:
-                self.process = RunCmd(cmd)
-                self.process.run()
-                self.process.wait()
-            except Exception as e:
+                os.system("{0} &".format(cmd))
+            except:
                 log.error("Erro ao iniciar grubinstall. {0}".format(e))
 
     def expand_last_partition(self,opt_expand):
         # After all data is copied to the disk
         # we instance class again to reload
-        
+
         sync()
         device = Device(self.target_device)
         disk = Disk(device)

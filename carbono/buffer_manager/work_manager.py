@@ -28,11 +28,12 @@ from carbono.config import *
 from carbono.exception import *
 
 class Worker(Process):
-    def __init__(self, buffer, reorder_buffer, job):
+    def __init__(self, buffer, reorder_buffer, job, status_callback):
         Process.__init__(self)
         self.buffer = buffer
         self.reorder_buffer = reorder_buffer
         self.job = job
+        self.status_callback = status_callback
         self.event = Event()
 
     def run(self):
@@ -47,7 +48,12 @@ class Worker(Process):
             if data == EOF:
                 self.stop()
                 break
-            worked_data = self.job(data)
+
+            try:
+                worked_data = self.job(data)
+            except Exception as e:
+                self.notify_status("read_buffer_error",{"read_buffer_error":str(e)})
+                raise ErrorReadingToDevice(e)
 
             while self.event.is_set():
                 try:
