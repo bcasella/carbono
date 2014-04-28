@@ -17,6 +17,8 @@
 
 import math
 import _ped
+import os
+
 from parted import PARTITION_NORMAL
 
 from carbono.device import Device
@@ -280,10 +282,8 @@ class ImageRestorer:
             log.info("Iniciando gtk grubinstall")
             cmd = "{0}".format(which("grubinstall"))
             try:
-                self.process = RunCmd(cmd)
-                self.process.run()
-                self.process.wait()
-            except Exception as e:
+                os.system("{0} &".format(cmd))
+            except:
                 log.error("Erro ao iniciar grubinstall. {0}".format(e))
 
     def expand_last_partition(self,opt_expand):
