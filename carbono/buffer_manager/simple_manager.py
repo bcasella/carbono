@@ -19,10 +19,14 @@ from carbono.buffer_manager.dummy_manager import DummyManager
 
 class SimpleManager(DummyManager):
 
-    def __init__(self, read_callback, job_callback):
+    def __init__(self, read_callback, job_callback, notify_status):
         DummyManager.__init__(self, read_callback)
         self.job = job_callback
+        self.notify_status = notify_status
 
     def put(self, data):
-        worked_data = self.job(data)
-        self.output_buffer.put(worked_data)
+        try:
+            worked_data = self.job(data)
+            self.output_buffer.put(worked_data)
+        except Exception as e:
+            self.notify_status("read_buffer_error",{"read_buffer_error":str(e)})

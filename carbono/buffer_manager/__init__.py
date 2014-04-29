@@ -23,12 +23,16 @@ from carbono.utils import *
 
 class BufferManagerFactory:
 
-    def __init__(self, read_callback, job_callback=None):
+    def __init__(self, read_callback,notify_status, job_callback=None):
         if job_callback:
             if available_processors() <= 2:# and is_hyperthreading():
-                self._manager = SimpleManager(read_callback, job_callback)
+                self._manager = SimpleManager(read_callback, 
+                                              job_callback,
+                                              notify_status)
             else:
-                self._manager = WorkManager(read_callback, job_callback)
+                self._manager = WorkManager(read_callback, 
+                                            job_callback,
+                                            notify_status)
         else:
             self._manager = DummyManager(read_callback)
 
