@@ -5,7 +5,7 @@ from setuptools import setup
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
-VERSION_ID = "2.1.0"
+VERSION_ID = "2.2.0"
 BUILD_ID = "{0}-SNAPSHOT".format(VERSION_ID)
 if 'BUILD_NUMBER' in os.environ:
     BUILD_ID = "{0}.{1}".format(VERSION_ID, os.environ['BUILD_NUMBER'])
@@ -23,4 +23,4 @@ setup(
                   "carbono.filesystem", "carbono.ui",
                   "carbono.image_reader"],
     scripts = ["scripts/carbono"],
-) 
+)
