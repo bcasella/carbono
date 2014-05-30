@@ -22,14 +22,12 @@ import random
 import errno
 import os
 import parted
+import dbus
 
 from threading import Thread, Event
 from os.path import realpath
 from carbono.exception import *
 from carbono.config import *
-
-
-
 
 class HalInfo():
     '''
@@ -171,8 +169,23 @@ class DiskInfo():
                                              "size": _dict[disk]["partitions"][part]["size"]}
             self.__DISK_DICT[disk] = {"model": _dict[disk]["model"],
                                     "size": _dict[disk]["size"],
-                                    "partitions": partitions}
+                                    "partitions": partitions,
+                                    "detach": self.device_detachable(disk)}
 
+    def device_detachable(self, device):
+        bus = dbus.SystemBus()
+        ud_manager_obj = bus.get_object('org.freedesktop.UDisks',
+                                        '/org/freedesktop/UDisks')
+        proplist = []
+        ud_manager = dbus.Interface(ud_manager_obj, 'org.freedesktop.UDisks')
+        for device_pc in ud_manager.EnumerateDevices():
+            device_obj = bus.get_object('org.freedesktop.UDisks', device_pc)
+            device_props = dbus.Interface(device_obj, dbus.PROPERTIES_IFACE)
+            proplist.append(device_props.GetAll('org.freedesktop.UDisks.Device'))
+
+        for device_props in proplist:
+            if device_props["DeviceFile"] == device:
+                return device_props['DriveCanDetach']
 
     def formated_partitions(self):
         formated_partitions = []
@@ -204,7 +217,6 @@ class DiskInfo():
                 disk = temp_disk
         formated_partitions_dict[disk]["partitions"] = temp_parts
         return(formated_partitions_dict)
-
 
 
 class DiskPartition():
