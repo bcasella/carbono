@@ -20,7 +20,7 @@ class PartitionExpander:
         """ """
         device = parted.Device(self.path)
         disk = parted.Disk(device)
-        
+
         try:
             last_partition = disk.partitions[-1]
         except IndexError:
@@ -74,8 +74,12 @@ class PartitionExpander:
         try:
             disk.commit()
         except:
-            disk.commitToDevice()
-            disk.commitToOS()
+            try:
+                disk.commitToDevice()
+                disk.commitToOS()
+            except Exception as e:
+                log.error("PartitionExpander : {0}".format(e))
+
 
         # Após criar a tabela de partição temos que fazer
         # com o kernel releia essa tabela. Será preciso
@@ -100,7 +104,7 @@ class PartitionExpander:
         # temos que esperar o dispositivo ficar pronto
         attempt = 0
         while True:
-             
+
             if os.path.exists(new_partition.path):
                 break
 
@@ -113,5 +117,5 @@ class PartitionExpander:
         # Agora da um resize no sistema de arquivos
         # Pegar o tamanho total do dispositivo da partição a ser redimensionada
         size = new_partition.geometry.length * device.sectorSize
- 
+
         return size
