@@ -28,14 +28,11 @@ from os.path import realpath
 from carbono.exception import *
 from carbono.config import *
 
-
-
-
 class HalInfo():
     '''
     Get info of the disk using HAL
     '''
-    
+
     def __init__(self):
         self.external_devices = []
 
@@ -49,7 +46,6 @@ class HalInfo():
 
         return out.split()
 
-
     def get_volumes_udis(self):
         '''
         Get the dbus path  of all devices (/dev/sda1)
@@ -58,9 +54,7 @@ class HalInfo():
         out,err,ret = run_simple_command_echo('{0} --capability "volume"'.format(
                             which('hal-find-by-capability')),False)
 
-
         return out.split()
-
 
     def is_storage_removable(self, storage_udi):
         '''Verifies if given udi is a removable storage'''
@@ -90,7 +84,6 @@ class HalInfo():
                              which('hal-get-property'),udi), False
                              )
         return out
-
 
     def get_external_devices(self):
         storages_udis = self.get_storages_udis()
@@ -172,6 +165,14 @@ class DiskInfo():
             self.__DISK_DICT[disk] = {"model": _dict[disk]["model"],
                                     "size": _dict[disk]["size"],
                                     "partitions": partitions}
+    def disk_usage(self, path):
+        st = os.statvfs(path)
+        disk_usage = {}
+        disk_usage["free"] = st.f_bavail * st.f_frsize
+        disk_usage["total"] = st.f_blocks * st.f_frsize
+        disk_usage["used"] = (st.f_blocks - st.f_bfree) * st.f_frsize
+
+        return disk_usage
 
 
     def formated_partitions(self):
@@ -181,10 +182,18 @@ class DiskInfo():
 
         device_info = {"size":None,"label":None,"partitions":None}
         for part in self.__PARTITION_DICT.keys():
+            part_dict = {}
+            disk_part = DiskPartition(part)
+            tmp_folder_part = disk_part.mount_partition()
+            if tmp_folder_part:
+               part_usage = self.disk_usage(tmp_folder_part)
+               part_dict["total_size"] = part_usage["total"]
+               part_dict["used_size"] = part_usage["used"]
+               part_dict["free_size"] = part_usage["free"]
+
             part_type = self.__PARTITION_DICT[part]['type']
             size_bytes = self.__PARTITION_DICT[part]['size']
             size_mb = int(long(size_bytes)/(1024*1024.0))
-            part_dict = {}
             part_dict["type"] = part_type
             part_dict["path"] = part
             part_dict["size"] = size_mb
@@ -328,6 +337,7 @@ class DiskPartition():
                     list_dest = []
         return disk_mounted
 
+
 class Timer(Thread):
     def __init__(self, callback, timeout=2):
         Thread.__init__(self)
@@ -384,10 +394,10 @@ def run_simple_command(cmd):
     return p.returncode
 
 def run_simple_command_echo(cmd, echo=False):
-    ''' 
+    '''
     run a given command
     returns the output, errors (if any) and returncode
-    '''    
+    '''
     if echo:
         print "{0}".format(cmd)
     p = subprocess.Popen(cmd, shell=True,
