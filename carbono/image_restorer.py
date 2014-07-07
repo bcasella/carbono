@@ -310,9 +310,9 @@ class ImageRestorer:
                         if returncode == True:
                             log.info("Resize in {0} was made with sucess".format(partition.get_path()))
                         else:
-                            log.info("Resize in {0} failed".format(partition.get_path()))
-                            self.notify_status("expand_last_partition_error", {"last_partition":partition.get_path()})
-                            self.canceled = True
+                            log.info("Resize in {0} failed - Versao sem mensagem!".format(partition.get_path()))
+                            #self.notify_status("expand_last_partition_error", {"last_partition":partition.get_path()})
+                            #self.canceled = True
                     else:
                         if opt_expand == 1:
                             log.info("Formating {0} filesystem".format(partition.get_path()))
