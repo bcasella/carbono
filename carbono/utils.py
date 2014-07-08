@@ -184,7 +184,7 @@ class DiskInfo():
         for part in self.__PARTITION_DICT.keys():
             part_dict = {}
             disk_part = DiskPartition(part)
-            tmp_folder_part = disk_part.mount_partition()
+            tmp_folder_part = disk_part.mount_partition(ro = True)
             if tmp_folder_part:
                part_usage = self.disk_usage(tmp_folder_part)
                part_dict["total_size"] = part_usage["total"]
@@ -278,7 +278,10 @@ class DiskPartition():
         return result_disk_umounted
 
 
-    def mount_partition(self,destino = None):
+    def mount_partition(self, destino = None, ro = False):
+        mount_options = ""
+        if not ro:
+            mount_options += "-o ro"
 
         mounted_folder = self.get_mount_point(self.__partition)
 
@@ -289,7 +292,7 @@ class DiskPartition():
 
         if destino is None:
             mounted_folder = adjust_path(tempfile.mkdtemp())
-            cmd = "mount {0} {1}".format(self.__partition, mounted_folder)
+            cmd = "mount {0} {1} {2}".format(mount_options, self.__partition, mounted_folder)
             p = subprocess.Popen(cmd,stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             ret = os.waitpid(p.pid,0)[1]
             if not ret:
@@ -298,7 +301,7 @@ class DiskPartition():
                 return False
 
         else:
-            cmd = "mount {0} {1}".format(self.__partition, destino)
+            cmd = "mount {0} {1} {2}".format(mount_options, self.__partition, destino)
             p = subprocess.Popen(cmd,stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             ret = os.waitpid(p.pid,0)[1]
             if not ret:
