@@ -119,6 +119,7 @@ class DiskInfo():
         ''' Filter = only partitions with a valid filesystem '''
 
         disk_dict = {}
+
         devices = parted.getAllDevices()
         for device in devices:
             dev_path = device.path
@@ -164,7 +165,8 @@ class DiskInfo():
                                              "size": _dict[disk]["partitions"][part]["size"]}
             self.__DISK_DICT[disk] = {"model": _dict[disk]["model"],
                                     "size": _dict[disk]["size"],
-                                    "partitions": partitions}
+                                     "partitions" : []
+                                     }
     def disk_usage(self, path):
         st = os.statvfs(path)
         disk_usage = {}
@@ -174,8 +176,7 @@ class DiskInfo():
 
         return disk_usage
 
-
-    def formated_partitions(self):
+    def formated_partitions(self, filter_disk=None):
         formated_partitions = []
         formated_partitions_dict = self.__DISK_DICT
         self.__collect_information_about_devices()
@@ -184,47 +185,53 @@ class DiskInfo():
         for part in self.__PARTITION_DICT.keys():
             part_dict = {}
             disk_part = DiskPartition(part)
-            tmp_folder_part = disk_part.mount_partition(ro = True)
+            tmp_folder_part = disk_part.mount_partition(ro=True)
+            part_dict["total_size"] = None
+            part_dict["used_size"] = None
+            part_dict["free_size"] = None
+
             if tmp_folder_part:
-               part_usage = self.disk_usage(tmp_folder_part)
-               part_dict["total_size"] = part_usage["total"]
-               part_dict["used_size"] = part_usage["used"]
-               part_dict["free_size"] = part_usage["free"]
+                part_usage = self.disk_usage(tmp_folder_part)
+                part_dict["total_size"] = part_usage["total"]
+                part_dict["used_size"] = part_usage["used"]
+                part_dict["free_size"] = part_usage["free"]
 
             part_type = self.__PARTITION_DICT[part]['type']
             size_bytes = self.__PARTITION_DICT[part]['size']
-            size_mb = int(long(size_bytes)/(1024*1024.0))
+            size_mb = int(long(size_bytes) / (1024 * 1024.0))
             part_dict["type"] = part_type
             part_dict["path"] = part
             part_dict["size"] = size_mb
             formated_partitions.append(part_dict)
 
         formated_partitions.sort(reverse=False)
-        temp_parts = []
         disk = formated_partitions[0]['path'][:8]
-        for aux in range(0,len(formated_partitions)):
+        formated_partitions_dict[disk]["partitions"] = []
+        for aux in range(0, len(formated_partitions)):
             temp_disk = formated_partitions[aux]['path'][:8]
-            if temp_disk == disk:
-                temp_parts.append(formated_partitions[aux])
-            else:
-                formated_partitions_dict[disk]["partitions"] = temp_parts
-                temp_parts = []
-                temp_parts.append(formated_partitions[aux])
+            if formated_partitions_dict[temp_disk]["partitions"] is None:
+                formated_partitions_dict[temp_disk]["partitions"] = []
+            if temp_disk != disk:
                 disk = temp_disk
-        formated_partitions_dict[disk]["partitions"] = temp_parts
+            formated_partitions_dict[temp_disk]["partitions"].append(
+                formated_partitions[aux])
+        if filter_disk is not None:
+            formated_partitions_dict = dict((key,value)
+                                            for key, value
+                                            in formated_partitions_dict.iteritems()
+                                            if key == filter_disk)
         return(formated_partitions_dict)
-
 
 
 class DiskPartition():
 
 
-    def __init__(self, partition = ""):
+    def __init__(self, partition=""):
 
         self.__temp_folder = ""
         self.__partition = partition
 
-    def __generate_temp_folder(self, destino = "/tmp/"):
+    def __generate_temp_folder(self, destino="/tmp/"):
 
         self.__temp_folder = adjust_path(tempfile.mkdtemp())
 
@@ -238,7 +245,7 @@ class DiskPartition():
 
         return self.__partition
 
-    def umount_partition(self, device = None):
+    def umount_partition(self, device=None):
         disk_mounted = self.get_mounted_devices()
         disk_list = []
         result_disk_umounted = {}
@@ -477,7 +484,7 @@ def available_memory(percent=100):
     return free
 
 def get_devices():
-    disk_dict = {}
+    disk_dic = {}
     devices = parted.getAllDevices()
     for device in devices:
         dev_path = device.path
@@ -493,8 +500,8 @@ def get_devices():
                 part_type = p.fileSystem.type
             if part_type == "fat32" or part_type == "fat16":
                 part_dict[part_path] = {"type":part_type}
-                disk_dict[dev_path] = {"partitions": part_dict}
-    return disk_dict
+                disk_dic[dev_path] = {"partitions": part_dict}
+    return disk_dic
 
 CARBONO_FILES2 = ("initram.gz","vmlinuz","isolinux.cfg")
 
