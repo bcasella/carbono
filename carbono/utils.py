@@ -22,6 +22,7 @@ import random
 import errno
 import os
 import parted
+import dbus
 
 from threading import Thread, Event
 from os.path import realpath
@@ -165,7 +166,8 @@ class DiskInfo():
                                              "size": _dict[disk]["partitions"][part]["size"]}
             self.__DISK_DICT[disk] = {"model": _dict[disk]["model"],
                                     "size": _dict[disk]["size"],
-                                     "partitions" : []
+                                     "partitions" : [],
+                                     "detach": self.device_detachable(disk)
                                      }
     def disk_usage(self, path):
         st = os.statvfs(path)
@@ -175,6 +177,21 @@ class DiskInfo():
         disk_usage["used"] = (st.f_blocks - st.f_bfree) * st.f_frsize
 
         return disk_usage
+
+    def device_detachable(self, device):
+        bus = dbus.SystemBus()
+        ud_manager_obj = bus.get_object('org.freedesktop.UDisks',
+                                        '/org/freedesktop/UDisks')
+        proplist = []
+        ud_manager = dbus.Interface(ud_manager_obj, 'org.freedesktop.UDisks')
+        for device_pc in ud_manager.EnumerateDevices():
+            device_obj = bus.get_object('org.freedesktop.UDisks', device_pc)
+            device_props = dbus.Interface(device_obj, dbus.PROPERTIES_IFACE)
+            proplist.append(device_props.GetAll('org.freedesktop.UDisks.Device'))
+
+        for device_props in proplist:
+            if device_props["DeviceFile"] == device:
+                return device_props['DriveCanDetach']
 
     def formated_partitions(self, filter_disk=None):
         formated_partitions = []
