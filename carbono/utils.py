@@ -190,9 +190,11 @@ class DiskInfo():
             proplist.append(device_props.GetAll('org.freedesktop.UDisks.Device'))
 
         for device_props in proplist:
-            if device_props["DeviceFile"] == device:
-                return device_props['DriveCanDetach']
+            if (device_props["DeviceFile"] == device and
+                device_props['DriveCanDetach']):
+                return True
 
+        return False
     def formated_partitions(self, filter_disk=None):
         formated_partitions = []
         formated_partitions_dict = self.__DISK_DICT
