@@ -21,6 +21,7 @@ import errno
 from carbono.utils import *
 from carbono.exception import *
 
+
 class Information:
 
     def __init__(self, target_path):
@@ -56,6 +57,10 @@ class Information:
         """ """
         self._doc.update({"is_disk": is_disk})
 
+    def set_disk_size(self, size):
+        """ """
+        self._doc.update({"disk_size": size})
+
     def add_partition(self, number, type, volumes, size,
                       uuid=None, label=None):
         """ """
@@ -79,7 +84,13 @@ class Information:
     def get_image_name(self):
         """ """
         return self._doc["name"]
-    
+
+    def get_disk_size(self):
+        """ """
+        if hasattr(self, _doc["disk_size"]):
+            return self._doc["disk_size"]
+        return None
+
     def get_image_compressor_level(self):
         """ """
         return self._doc["compressor_level"]
@@ -90,7 +101,7 @@ class Information:
 
     def get_partitions(self):
         """ """
-        if hasattr(self,"_partitions"):
+        if hasattr(self, "_partitions"):
             partitions = self._partitions
         else:
             partitions = self._doc["partitions"]
@@ -114,4 +125,3 @@ class Information:
         except IOError, e:
             if e.errno == errno.ENOENT:
                 raise ImageNotFound("Image not found")
-

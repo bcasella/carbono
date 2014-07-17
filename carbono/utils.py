@@ -179,22 +179,36 @@ class DiskInfo():
         return disk_usage
 
     def device_detachable(self, device):
-        bus = dbus.SystemBus()
-        ud_manager_obj = bus.get_object('org.freedesktop.UDisks',
-                                        '/org/freedesktop/UDisks')
-        proplist = []
-        ud_manager = dbus.Interface(ud_manager_obj, 'org.freedesktop.UDisks')
-        for device_pc in ud_manager.EnumerateDevices():
-            device_obj = bus.get_object('org.freedesktop.UDisks', device_pc)
-            device_props = dbus.Interface(device_obj, dbus.PROPERTIES_IFACE)
-            proplist.append(device_props.GetAll('org.freedesktop.UDisks.Device'))
+        try:
+            bus = dbus.SystemBus()
+            ud_manager_obj = bus.get_object('org.freedesktop.UDisks',
+                                            '/org/freedesktop/UDisks')
+            proplist = []
+            ud_manager = dbus.Interface(ud_manager_obj, 'org.freedesktop.UDisks')
+            for device_pc in ud_manager.EnumerateDevices():
+                device_obj = bus.get_object('org.freedesktop.UDisks', device_pc)
+                device_props = dbus.Interface(device_obj, dbus.PROPERTIES_IFACE)
+                proplist.append(device_props.GetAll('org.freedesktop.UDisks.Device'))
 
-        for device_props in proplist:
-            if (device_props["DeviceFile"] == device and
-                device_props['DriveCanDetach']):
-                return True
-
+            for device_props in proplist:
+                if (device_props["DeviceFile"] == device and
+                    device_props['DriveCanDetach']):
+                    return True
+        except Exception as e:
+            print e
         return False
+
+    def formated_disk(self, filter_disk=None):
+        """ """
+        self.__collect_information_about_devices()
+        formated_partitions_list = self.__DISK_DICT
+        formated_partitions_dict = {}
+        if filter_disk is not None:
+            return formated_partitions_list[filter_disk]
+        else:
+            for disk in formated_partitions_list:
+                formated_partitions_dict[disk] = formated_partitions_list[disk]
+        return formated_partitions_dict
     def formated_partitions(self, filter_disk=None):
         formated_partitions = []
         formated_partitions_dict = self.__DISK_DICT
