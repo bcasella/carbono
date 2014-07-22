@@ -57,6 +57,16 @@ class HalInfo():
 
         return out.split()
 
+    def is_storage_cdrom(self, storage_udi):
+        '''Verifies if given udi is a cdrom storage'''
+        out,err,ret = run_simple_command_echo('{0} --udi {1} \
+                             --key storage.cdrom.cdr'.format(
+                             which('hal-get-property'),storage_udi), False)
+        if 'true' in out:
+            return True
+        return False
+
+
     def is_storage_removable(self, storage_udi):
         '''Verifies if given udi is a removable storage'''
         out,err,ret = run_simple_command_echo('{0} --udi {1} \
@@ -86,7 +96,18 @@ class HalInfo():
                              )
         return out
 
+    def get_storage_model(self, storage_udi):
+        '''Returns model of given storage'''
+        out,err,ret = run_simple_command_echo('{0} --udi {1} \
+                             --key storage.model'.format(
+                             which('hal-get-property'),storage_udi), False)
+        return out
+
     def get_external_devices(self):
+        '''
+        get all external devices
+        returns a list of /dev/xxx. ie.: ['/dev/sdd','/dev/sr0']
+        '''
         storages_udis = self.get_storages_udis()
         volumes_udis = self.get_volumes_udis()
         for s in volumes_udis:
@@ -104,6 +125,21 @@ class HalInfo():
                         if ( device in vol ) and ( vol not in self.external_devices ):
                             self.external_devices.append(vol)
         return self.external_devices
+
+    def get_cdrom_devices(self):
+        '''
+        get cdroms devices
+        returns a dict with device path and it model string
+        ie.: {"/dev/sr0":{'model': "dvdrw"} }
+        '''
+        storage_udis = self.get_storages_udis()
+        cdrom_dict = {}
+        for st in storage_udis:
+            if self.is_storage_cdrom(st):
+                device = self.get_block_device(st).split()[0]
+                model = self.get_storage_model(st)
+                cdrom_dict[device] = {"model": model}
+        return cdrom_dict
 
 
 class DiskInfo():
