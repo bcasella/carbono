@@ -245,6 +245,7 @@ class DiskInfo():
             for disk in formated_partitions_list:
                 formated_partitions_dict[disk] = formated_partitions_list[disk]
         return formated_partitions_dict
+
     def formated_partitions(self, filter_disk=None):
         formated_partitions = []
         formated_partitions_dict = self.__DISK_DICT
@@ -272,6 +273,7 @@ class DiskInfo():
             part_dict["path"] = part
             part_dict["size"] = size_mb
             formated_partitions.append(part_dict)
+            disk_part.umount_partition()
 
         formated_partitions.sort(reverse=False)
         disk = formated_partitions[0]['path'][:8]
