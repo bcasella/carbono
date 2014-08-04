@@ -358,7 +358,7 @@ class DiskPartition():
 
     def mount_partition(self, destino = None, ro = False):
         mount_options = ""
-        if not ro:
+        if ro:
             mount_options += "-o ro"
 
         mounted_folder = self.get_mount_point(self.__partition)
