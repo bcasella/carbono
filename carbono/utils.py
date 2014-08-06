@@ -255,7 +255,11 @@ class DiskInfo():
         for part in self.__PARTITION_DICT.keys():
             part_dict = {}
             disk_part = DiskPartition(part)
-            tmp_folder_part = disk_part.mount_partition(ro=True)
+            tmp_folder_part = disk_part.get_mounted_folder()
+            was_mounted = True
+            if not tmp_folder_part:
+                was_mounted = False
+                tmp_folder_part = disk_part.mount_partition(ro=True)
             part_dict["total_size"] = None
             part_dict["used_size"] = None
             part_dict["free_size"] = None
@@ -273,7 +277,8 @@ class DiskInfo():
             part_dict["path"] = part
             part_dict["size"] = size_mb
             formated_partitions.append(part_dict)
-            disk_part.umount_partition()
+            if not was_mounted:
+                disk_part.umount_partition()
 
         formated_partitions.sort(reverse=False)
         disk = formated_partitions[0]['path'][:8]
@@ -332,8 +337,15 @@ class DiskPartition():
                     result_disk_umounted[item] = 0
                     print "A particao {0} foi desmontada do diretorio {1}".format(self.__partition, item)
                 else:
-                    result_disk_umounted[item] = -1
-                    print "A particao {0} montada em {1} nao foi desmontada".format(self.__partition,item)
+                    cmd = "umount {0}".format(item)
+                    p = subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE, shell=True)
+                    ret = os.waitpid(p.pid,0)[1]
+                    if not ret:
+                        result_disk_umounted[item] = 0
+                        print "A particao {0} foi desmontada do diretorio {1}".format(self.__partition, item)
+                    else:
+                        result_disk_umounted[item] = -1
+                        print "A particao {0} montada em {1} nao foi desmontada".format(self.__partition,item)
         return result_disk_umounted
 
     def umount_all_partitions(self):
@@ -355,6 +367,12 @@ class DiskPartition():
             result_disk_umounted[item] = result_part_umounted
         return result_disk_umounted
 
+    def get_mounted_folder(self):
+        mounted_folder = self.get_mount_point(self.__partition)
+
+        if mounted_folder:
+            return mounted_folder[0]
+        return False
 
     def mount_partition(self, destino = None, ro = False):
         mount_options = ""
