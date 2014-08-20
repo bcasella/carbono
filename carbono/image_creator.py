@@ -89,7 +89,9 @@ class ImageCreator:
                     if part_list[0] == "current":
                         if len(part_list) >= 13:
                             try:
-                                self.notify_status("waiting_partclone",{"partclone_percent":partclone_status.split()[13].split(",")[0]})
+                                status = partclone_status.split()[13].split(",")[0]
+                                status2 = status.split("%")[0]
+                                self.notify_status("waiting_partclone",{"partclone_percent":float(status2)})
                             except Exception as e:
                                 log.info(e)
                                 raise ErrorCreatingImage("Create image wasn't made with success")
