@@ -592,7 +592,7 @@ def get_devices():
                 disk_dic[dev_path] = {"partitions": part_dict}
     return disk_dic
 
-CARBONO_FILES2 = ("initram.gz","vmlinuz","isolinux.cfg")
+CARBONO_FILES2 = ("initrd.lz","vmlinuz","filesystem.squashfs")
 
 def mount_pen(device):
     tmpd = make_temp_dir()
@@ -602,8 +602,14 @@ def mount_pen(device):
     return tmpd
 
 def find_carbono(path):
-    dev_files = os.listdir(path)
+    try:
+        dev_files = os.listdir(os.path.join(path, "casper"))
+    except Exception as e:
+        print e
+        return False
     ret = True
+    if dev_files is None:
+        ret = False
     if filter(lambda x:not x in dev_files, CARBONO_FILES2):
         ret = False
     return ret
