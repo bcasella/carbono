@@ -53,23 +53,24 @@ class Ext(Generic):
     def open_to_read(self):
         """ """
         #cmd = "{0} -q -c -s {1} -o -".format(which("partclone.extfs"), self.path)
-        cmd = "{0} -c -s {1} -o -".format(which("partclone.extfs"), self.path)        
+        cmd = "{0} -c -s {1} -o -".format(which("partclone.extfs"), self.path)
         try:
             self.process = RunCmd(cmd)
             self.process.run()
             self._fd = self.process.stdout
-            self.fderr = self.process.stderr 
+            self.fderr = self.process.stderr
         except:
             raise ErrorOpenToRead("Cannot open {0} to read".format(self.path))
 
     def open_to_write(self, uuid=None):
         """ """
         #cmd = "{0} -q -r -o {1} -s - ".format(which("partclone.extfs"), self.path)
-        cmd = "{0} -r -o {1} -s - ".format(which("partclone.extfs"), self.path)        
+        cmd = "{0} -r -o {1} -s - ".format(which("partclone.extfs"), self.path)
         try:
             self.process = RunCmd(cmd)
             self.process.run()
             self._fd = self.process.stdin
+            self.fderr = self.process.stderr
         except:
             raise ErrorOpenToWrite("Cannot open {0} to write".format(self.path))
 
@@ -82,7 +83,7 @@ class Ext(Generic):
 
         if not len(output):
             return uuid
-        
+
         try:
             uuid = re.search('(?<=UUID=")\w+-\w+-\w+-\w+-\w+', output).group(0)
         except AttributeError:
@@ -92,6 +93,7 @@ class Ext(Generic):
 
     def close(self):
         """  """
+        os.system("pkill -9 partclone.extfs")
         if self._fd is None or \
            self._fd.closed:
             return
@@ -117,11 +119,11 @@ class Ext(Generic):
         output = output.strip()
         if output == 0:
             return True
-        return False    
-    
+        return False
+
 
     def resize(self):
-    
+
         if self.check():
             proc = subprocess.Popen([which("resize2fs"), self.path],
                                     stdout=subprocess.PIPE)
@@ -131,7 +133,7 @@ class Ext(Generic):
             if proc.returncode == 0:
                 return True
         return False
-        
+
     def read_label(self):
         proc = subprocess.Popen([which("e2label"), self.path],
                                 stdout=subprocess.PIPE)
