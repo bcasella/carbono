@@ -58,12 +58,12 @@ class Ntfs(Generic):
                     size = long(l.split()[3])
                 except ValueError:
                     raise ErrorGettingSize
-        
+
         if size is None:
             raise ErrorGettingSize
 
         return size
-            
+
     def get_used_size(self):
         """ """
         proc = subprocess.Popen("{0} -i {1} -f".format(which("ntfsresize"), self.path),
@@ -77,7 +77,7 @@ class Ntfs(Generic):
                     size = long(l.split()[4])
                 except ValueError:
                     raise ErrorGettingUsedSize
-        
+
         if size is None:
             raise ErrorGettingUsedSize
 
@@ -97,19 +97,19 @@ class Ntfs(Generic):
         output = output.strip()
         if output == 0:
             return True
-        return False    
+        return False
 
     def resize(self):
-        
+
         returncode = -1
         if self.check():
-            proc = subprocess.Popen([which("ntfsresize"), self.path],
+            proc = subprocess.Popen([which("ntfsresize"), "--force", self.path],
                                     stdout=subprocess.PIPE)
             proc.wait()
             output = proc.stdout.read()
             output = output.strip()
             returncode = proc.returncode
-            
+
             if returncode == 0:
                 return True
         return False

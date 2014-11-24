@@ -103,7 +103,7 @@ class Ext(Generic):
     def check(self):
         ret = run_simple_command("{0} -f -y -v {1}".format(which("e2fsck"),
                                                            self.path))
-        proc = subprocess.Popen([which("resize2fs"), self.path],
+        proc = subprocess.Popen([which("resize2fs"), "-f", self.path],
                                 stdout=subprocess.PIPE)
         output = proc.stdout.read()
         output = output.strip()
