@@ -421,7 +421,9 @@ class DiskPartition():
         mount_command = subprocess.check_output(['mount','-l']).split('\n')
         for lines in mount_command:
             line = lines.split(' ')
-            if line[0].startswith('/dev/sd'):
+            if (line[0].startswith('/dev/sd') or
+               line[0].startswith('/dev/sr') or
+               line[0].startswith('/dev/cd')):
                 if line[0] not in disk_mounted.keys():
                     list_dest = []
                     list_dest.append(line[2])
