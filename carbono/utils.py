@@ -22,20 +22,18 @@ import random
 import errno
 import os
 import parted
+import dbus
 
 from threading import Thread, Event
 from os.path import realpath
 from carbono.exception import *
 from carbono.config import *
 
-
-
-
 class HalInfo():
     '''
     Get info of the disk using HAL
     '''
-    
+
     def __init__(self):
         self.external_devices = []
 
@@ -49,7 +47,6 @@ class HalInfo():
 
         return out.split()
 
-
     def get_volumes_udis(self):
         '''
         Get the dbus path  of all devices (/dev/sda1)
@@ -58,8 +55,16 @@ class HalInfo():
         out,err,ret = run_simple_command_echo('{0} --capability "volume"'.format(
                             which('hal-find-by-capability')),False)
 
-
         return out.split()
+
+    def is_storage_cdrom(self, storage_udi):
+        '''Verifies if given udi is a cdrom storage'''
+        out,err,ret = run_simple_command_echo('{0} --udi {1} \
+                             --key storage.cdrom.cdr'.format(
+                             which('hal-get-property'),storage_udi), False)
+        if 'true' in out:
+            return True
+        return False
 
 
     def is_storage_removable(self, storage_udi):
@@ -91,8 +96,18 @@ class HalInfo():
                              )
         return out
 
+    def get_storage_model(self, storage_udi):
+        '''Returns model of given storage'''
+        out,err,ret = run_simple_command_echo('{0} --udi {1} \
+                             --key storage.model'.format(
+                             which('hal-get-property'),storage_udi), False)
+        return out
 
     def get_external_devices(self):
+        '''
+        get all external devices
+        returns a list of /dev/xxx. ie.: ['/dev/sdd','/dev/sr0']
+        '''
         storages_udis = self.get_storages_udis()
         volumes_udis = self.get_volumes_udis()
         for s in volumes_udis:
@@ -111,6 +126,21 @@ class HalInfo():
                             self.external_devices.append(vol)
         return self.external_devices
 
+    def get_cdrom_devices(self):
+        '''
+        get cdroms devices
+        returns a dict with device path and it model string
+        ie.: {"/dev/sr0":{'model': "dvdrw"} }
+        '''
+        storage_udis = self.get_storages_udis()
+        cdrom_dict = {}
+        for st in storage_udis:
+            if self.is_storage_cdrom(st):
+                device = self.get_block_device(st).split()[0]
+                model = self.get_storage_model(st)
+                cdrom_dict[device] = {"model": model}
+        return cdrom_dict
+
 
 class DiskInfo():
 
@@ -126,6 +156,7 @@ class DiskInfo():
         ''' Filter = only partitions with a valid filesystem '''
 
         disk_dict = {}
+
         devices = parted.getAllDevices()
         for device in devices:
             dev_path = device.path
@@ -171,51 +202,112 @@ class DiskInfo():
                                              "size": _dict[disk]["partitions"][part]["size"]}
             self.__DISK_DICT[disk] = {"model": _dict[disk]["model"],
                                     "size": _dict[disk]["size"],
-                                    "partitions": partitions}
+                                     "partitions" : [],
+                                     "detach": self.device_detachable(disk)
+                                     }
+    def disk_usage(self, path):
+        st = os.statvfs(path)
+        disk_usage = {}
+        disk_usage["free"] = st.f_bavail * st.f_frsize
+        disk_usage["total"] = st.f_blocks * st.f_frsize
+        disk_usage["used"] = (st.f_blocks - st.f_bfree) * st.f_frsize
 
+        return disk_usage
 
-    def formated_partitions(self):
+    def device_detachable(self, device):
+        try:
+            bus = dbus.SystemBus()
+            ud_manager_obj = bus.get_object('org.freedesktop.UDisks',
+                                            '/org/freedesktop/UDisks')
+            proplist = []
+            ud_manager = dbus.Interface(ud_manager_obj, 'org.freedesktop.UDisks')
+            for device_pc in ud_manager.EnumerateDevices():
+                device_obj = bus.get_object('org.freedesktop.UDisks', device_pc)
+                device_props = dbus.Interface(device_obj, dbus.PROPERTIES_IFACE)
+                proplist.append(device_props.GetAll('org.freedesktop.UDisks.Device'))
+
+            for device_props in proplist:
+                if (device_props["DeviceFile"] == device and
+                    device_props['DriveCanDetach']):
+                    return True
+        except Exception as e:
+            print e
+        return False
+
+    def formated_disk(self, filter_disk=None):
+        """ """
+        self.__collect_information_about_devices()
+        formated_partitions_list = self.__DISK_DICT
+        formated_partitions_dict = {}
+        if filter_disk is not None:
+            return formated_partitions_list[filter_disk]
+        else:
+            for disk in formated_partitions_list:
+                formated_partitions_dict[disk] = formated_partitions_list[disk]
+        return formated_partitions_dict
+
+    def formated_partitions(self, filter_disk=None):
         formated_partitions = []
         formated_partitions_dict = self.__DISK_DICT
         self.__collect_information_about_devices()
 
         device_info = {"size":None,"label":None,"partitions":None}
         for part in self.__PARTITION_DICT.keys():
+            part_dict = {}
+            disk_part = DiskPartition(part)
+            tmp_folder_part = disk_part.get_mounted_folder()
+            was_mounted = True
+            if not tmp_folder_part:
+                was_mounted = False
+                tmp_folder_part = disk_part.mount_partition(ro=True)
+            part_dict["total_size"] = None
+            part_dict["used_size"] = None
+            part_dict["free_size"] = None
+
+            if tmp_folder_part:
+                part_usage = self.disk_usage(tmp_folder_part)
+                part_dict["total_size"] = part_usage["total"]
+                part_dict["used_size"] = part_usage["used"]
+                part_dict["free_size"] = part_usage["free"]
+
             part_type = self.__PARTITION_DICT[part]['type']
             size_bytes = self.__PARTITION_DICT[part]['size']
-            size_mb = int(long(size_bytes)/(1024*1024.0))
-            part_dict = {}
+            size_mb = int(long(size_bytes) / (1024 * 1024.0))
             part_dict["type"] = part_type
             part_dict["path"] = part
             part_dict["size"] = size_mb
             formated_partitions.append(part_dict)
+            if not was_mounted:
+                disk_part.umount_partition()
 
         formated_partitions.sort(reverse=False)
-        temp_parts = []
         disk = formated_partitions[0]['path'][:8]
-        for aux in range(0,len(formated_partitions)):
+        formated_partitions_dict[disk]["partitions"] = []
+        for aux in range(0, len(formated_partitions)):
             temp_disk = formated_partitions[aux]['path'][:8]
-            if temp_disk == disk:
-                temp_parts.append(formated_partitions[aux])
-            else:
-                formated_partitions_dict[disk]["partitions"] = temp_parts
-                temp_parts = []
-                temp_parts.append(formated_partitions[aux])
+            if formated_partitions_dict[temp_disk]["partitions"] is None:
+                formated_partitions_dict[temp_disk]["partitions"] = []
+            if temp_disk != disk:
                 disk = temp_disk
-        formated_partitions_dict[disk]["partitions"] = temp_parts
+            formated_partitions_dict[temp_disk]["partitions"].append(
+                formated_partitions[aux])
+        if filter_disk is not None:
+            formated_partitions_dict = dict((key,value)
+                                            for key, value
+                                            in formated_partitions_dict.iteritems()
+                                            if key == filter_disk)
         return(formated_partitions_dict)
-
 
 
 class DiskPartition():
 
 
-    def __init__(self, partition = ""):
+    def __init__(self, partition=""):
 
         self.__temp_folder = ""
         self.__partition = partition
 
-    def __generate_temp_folder(self, destino = "/tmp/"):
+    def __generate_temp_folder(self, destino="/tmp/"):
 
         self.__temp_folder = adjust_path(tempfile.mkdtemp())
 
@@ -229,7 +321,7 @@ class DiskPartition():
 
         return self.__partition
 
-    def umount_partition(self, device = None):
+    def umount_partition(self, device=None):
         disk_mounted = self.get_mounted_devices()
         disk_list = []
         result_disk_umounted = {}
@@ -245,8 +337,15 @@ class DiskPartition():
                     result_disk_umounted[item] = 0
                     print "A particao {0} foi desmontada do diretorio {1}".format(self.__partition, item)
                 else:
-                    result_disk_umounted[item] = -1
-                    print "A particao {0} montada em {1} nao foi desmontada".format(self.__partition,item)
+                    cmd = "umount {0}".format(item)
+                    p = subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.PIPE, shell=True)
+                    ret = os.waitpid(p.pid,0)[1]
+                    if not ret:
+                        result_disk_umounted[item] = 0
+                        print "A particao {0} foi desmontada do diretorio {1}".format(self.__partition, item)
+                    else:
+                        result_disk_umounted[item] = -1
+                        print "A particao {0} montada em {1} nao foi desmontada".format(self.__partition,item)
         return result_disk_umounted
 
     def umount_all_partitions(self):
@@ -268,8 +367,17 @@ class DiskPartition():
             result_disk_umounted[item] = result_part_umounted
         return result_disk_umounted
 
+    def get_mounted_folder(self):
+        mounted_folder = self.get_mount_point(self.__partition)
 
-    def mount_partition(self,destino = None):
+        if mounted_folder:
+            return mounted_folder[0]
+        return False
+
+    def mount_partition(self, destino = None, ro = False):
+        mount_options = ""
+        if ro:
+            mount_options += "-o ro"
 
         mounted_folder = self.get_mount_point(self.__partition)
 
@@ -280,7 +388,7 @@ class DiskPartition():
 
         if destino is None:
             mounted_folder = adjust_path(tempfile.mkdtemp())
-            cmd = "mount {0} {1}".format(self.__partition, mounted_folder)
+            cmd = "mount {0} {1} {2}".format(mount_options, self.__partition, mounted_folder)
             p = subprocess.Popen(cmd,stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             ret = os.waitpid(p.pid,0)[1]
             if not ret:
@@ -289,7 +397,7 @@ class DiskPartition():
                 return False
 
         else:
-            cmd = "mount {0} {1}".format(self.__partition, destino)
+            cmd = "mount {0} {1} {2}".format(mount_options, self.__partition, destino)
             p = subprocess.Popen(cmd,stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             ret = os.waitpid(p.pid,0)[1]
             if not ret:
@@ -313,7 +421,9 @@ class DiskPartition():
         mount_command = subprocess.check_output(['mount','-l']).split('\n')
         for lines in mount_command:
             line = lines.split(' ')
-            if line[0].startswith('/dev/sd'):
+            if (line[0].startswith('/dev/sd') or
+               line[0].startswith('/dev/sr') or
+               line[0].startswith('/dev/cd')):
                 if line[0] not in disk_mounted.keys():
                     list_dest = []
                     list_dest.append(line[2])
@@ -327,6 +437,7 @@ class DiskPartition():
                     disk_mounted[line[0]] = list_dest
                     list_dest = []
         return disk_mounted
+
 
 class Timer(Thread):
     def __init__(self, callback, timeout=2):
@@ -384,10 +495,10 @@ def run_simple_command(cmd):
     return p.returncode
 
 def run_simple_command_echo(cmd, echo=False):
-    ''' 
+    '''
     run a given command
     returns the output, errors (if any) and returncode
-    '''    
+    '''
     if echo:
         print "{0}".format(cmd)
     p = subprocess.Popen(cmd, shell=True,
@@ -464,7 +575,7 @@ def available_memory(percent=100):
     return free
 
 def get_devices():
-    disk_dict = {}
+    disk_dic = {}
     devices = parted.getAllDevices()
     for device in devices:
         dev_path = device.path
@@ -480,10 +591,10 @@ def get_devices():
                 part_type = p.fileSystem.type
             if part_type == "fat32" or part_type == "fat16":
                 part_dict[part_path] = {"type":part_type}
-                disk_dict[dev_path] = {"partitions": part_dict}
-    return disk_dict
+                disk_dic[dev_path] = {"partitions": part_dict}
+    return disk_dic
 
-CARBONO_FILES2 = ("initram.gz","vmlinuz","isolinux.cfg")
+CARBONO_FILES2 = ("initrd.lz","vmlinuz","filesystem.squashfs")
 
 def mount_pen(device):
     tmpd = make_temp_dir()
@@ -493,8 +604,14 @@ def mount_pen(device):
     return tmpd
 
 def find_carbono(path):
-    dev_files = os.listdir(path)
+    try:
+        dev_files = os.listdir(os.path.join(path, "casper"))
+    except Exception as e:
+        print e
+        return False
     ret = True
+    if dev_files is None:
+        ret = False
     if filter(lambda x:not x in dev_files, CARBONO_FILES2):
         ret = False
     return ret

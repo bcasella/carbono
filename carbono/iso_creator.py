@@ -22,7 +22,9 @@ from carbono.utils import *
 from carbono.exception import *
 from carbono.config import *
 
-CARBONO_FILES = ("initram.gz", "vmlinuz")
+CARBONO_FILES = ("filesystem.squashfs",
+                 "vmlinuz",
+                 "initrd.lz")
 
 
 class IsoCreator:
@@ -43,11 +45,11 @@ class IsoCreator:
         isolinux_tmp_file = "/tmp/isolinux.cfg"
         tmp_file = open(isolinux_tmp_file,"w")
         tmp_file.write("prompt 0\n"+
-                "     default upimage\n"+
+                       "timeout 1\n"+
+                "     default menu.c32\n"+
                 "label upimage\n"+
-                "     kernel vmlinuz\n"+
-                "     append initrd=initram.gz rdinit=/sbin/init "+
-                "ramdisk_size=512000\n")
+                "     kernel /casper/vmlinuz boot=casper toram\n"+
+                "     append initrd=/casper/initrd.lz file=/cdrom/preseed/ubuntu.seed boot=casper")
         tmp_file.close()
 
         return isolinux_tmp_file
@@ -79,7 +81,7 @@ class IsoCreator:
         return tmpd
 
     def find_carbono_files(self, path):
-        dev_files = os.listdir(path)
+        dev_files = os.listdir(os.path.join(path,"casper"))
         ret = True
         if filter(lambda x: not x in dev_files,
                       CARBONO_FILES):
@@ -123,9 +125,11 @@ class IsoCreator:
 
                     break
 
-                # Add carbono files
-                map(lambda x: self.slices[volume].\
-                    append(self.mount_point + x), CARBONO_FILES)
+                add = os.path.join(self.mount_point,"casper/")
+                add="/casper="+add
+
+                self.slices[volume].append(add)
+                self.slices[volume].append(os.path.join(self.mount_point,"menu.c32"))
 
                 # Add isolinux.cfg file
                 isolinux_file = self.__generate_isolinux_file()
@@ -146,10 +150,10 @@ class IsoCreator:
                 extra_params = "-joliet-long -b " + \
                 "isolinux.bin -c " + \
                 "boot.cat -no-emul-boot " + \
-                "-boot-load-size 4 -boot-info-table"
+                "-boot-load-size 4 -boot-info-table -graft-points"
 
             slist = ' '.join(self.slices[volume])
-            cmd = "{0} -R -J -o {1}{2}{3}.iso {4} {5}".format(
+            cmd = "{0} -R -J {4} {5} > {1}{2}{3}.iso".format(
                                                        which("mkisofs"),
                                                        self.target_path,
                                                        self.name,

@@ -142,8 +142,25 @@ class Generic:
         return True
 
     def read_label(self):
+        proc = subprocess.Popen([which("ntfslabel"), "--force", self.path],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output = proc.stdout.read()
+        err = proc.stdout.read()
+        if "mount" in err:
+            return None
+        if output:
+            output = output.strip()
+            return output
         return None
 
     def write_label(self, label):
+        try:
+            ret = run_simple_command('{0} --force {1} "{2}"'.\
+            format(which("ntfslabel"), self.path, label))                     
+            if ret == 0:                                                            
+                return True
+            return False 
+        except Exception as e:
+            pass
         return True
 

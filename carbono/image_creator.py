@@ -78,7 +78,7 @@ class ImageCreator:
             self.current_percent = percent
             self.notify_status("progress", {"percent": percent})
 
-        #verify stderr from partclone 
+        #verify stderr from partclone
         if self.partclone_stderr != None:
             partclone_status = self.partclone_stderr.readline()
             if partclone_status.startswith("Partclone successfully cloned the device"):
@@ -89,7 +89,9 @@ class ImageCreator:
                     if part_list[0] == "current":
                         if len(part_list) >= 13:
                             try:
-                                self.notify_status("waiting_partclone",{"partclone_percent":partclone_status.split()[13].split(",")[0]})
+                                status = partclone_status.split()[13].split(",")[0]
+                                status2 = status.split("%")[0]
+                                self.notify_status("waiting_partclone",{"partclone_percent":float(status2)})
                             except Exception as e:
                                 log.info(e)
                                 raise ErrorCreatingImage("Create image wasn't made with success")
@@ -147,12 +149,15 @@ class ImageCreator:
         for part in partition_list:
             total_bytes += part.filesystem.get_used_size()
 
-        self.total_blocks = long(math.ceil(total_bytes/float(BLOCK_SIZE))) 
+        self.total_blocks = long(math.ceil(total_bytes/float(BLOCK_SIZE)))
         information = Information(self.target_path)
         information.set_image_is_disk(device.is_disk())
         information.set_image_name(self.image_name)
         information.set_image_compressor_level(self.compressor_level)
-
+        if device.is_disk():
+            disk_info = DiskInfo()
+            disk_dict = disk_info.formated_disk(self.device_path)
+            information.set_disk_size(disk_dict["size"])
         # TODO: Abstract this whole part, when creating isos,
         # splitting in files, etc...
 
@@ -176,7 +181,7 @@ class ImageCreator:
             part.filesystem.open_to_read()
 
             #check if partclone is running
-            if type in  ("ext2","ext3","ext4"):                
+            if type in  ("ext2","ext3","ext4"):
                 self.partclone_stderr = part.filesystem.get_error_ext()
 
             compact_callback = None
@@ -190,7 +195,7 @@ class ImageCreator:
                                   compact_callback)
             self.buffer_manager.start()
 
-            buffer = self.buffer_manager.output_buffer 
+            buffer = self.buffer_manager.output_buffer
             volumes = 1
             while self.active:
                 total_written = 0 # Used to help splitting the file
@@ -220,13 +225,13 @@ class ImageCreator:
                             self.cancel()
                             raise ErrorReadingFromDevice(e)
                             break
-                            
+
 
                     if data == EOF:
                         if (self.partclone_stderr != None):
                             self.data_is_eof = True
                             while self.partclone_sucess == False:
-                                pass 
+                                pass
 
                         self.partclone_stderr = None
                         self.partclone_sucess = False
@@ -250,7 +255,7 @@ class ImageCreator:
                             break
                         except Exception as e:
                             log.info(e)
-                            break 
+                            break
                         raise ErrorWritingToDevice("Error in write file {0}".\
                                                    format(file_path))
 
@@ -316,7 +321,7 @@ class ImageCreator:
 
         if self.canceled:
             log.info("Creation canceled")
-            self.notify_status("canceled", {"operation": 
+            self.notify_status("canceled", {"operation":
                                             "Create image"})
         else:
             self.notify_status("finish")
@@ -327,7 +332,7 @@ class ImageCreator:
             if hasattr(self, "buffer_manager"):
                 self.buffer_manager.stop()
         self.active = False
-        self.timer.stop() 
+        self.timer.stop()
         log.info("Create image stopped")
 
     def cancel(self):

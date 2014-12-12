@@ -36,7 +36,7 @@ class GenericReader:
     def open(self):
         if self._check_fd():
             file_pattern = self.pattern.format(volume=self.current_volume)
-
+            image_path_aux = None
             # Loop untill find the the next slice or
             # cancel the operation
             while True:
@@ -44,15 +44,19 @@ class GenericReader:
                 if os.path.exists(file_path):
                     self._fd = open(file_path, 'rb')
                 else:
-                    self.image_path = self.notify_callback("file_not_found_cd",
+                    image_path_aux = self.notify_callback("file_not_found_cd",
                     {"path": self.image_path, "file": file_pattern, "current_volume": self.current_volume})
-
-                    if self.image_path:
-                        self.image_path = adjust_path(self.image_path)
-                        continue
+                    if image_path_aux:
+                        self.image_path = image_path_aux
+                        if self.image_path:
+                            self.image_path = adjust_path(self.image_path)
+                            continue
+                        else:
+                            raise Exception("canceled")
+                            break
                     else:
-                        raise Exception("canceled")
-                        break
+                       continue
+
                 break
 
     def close(self):
