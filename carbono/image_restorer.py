@@ -79,6 +79,8 @@ class ImageRestorer:
 
     def restore_image(self):
         """ """
+        invalid_partitions = False
+
         if is_mounted(self.target_device):
             log.error("The partition {0} is mounted, please umount first, and try again".format(self.target_device))
             self.notify_status("mounted_partition_error",{"mounted_partition_error":self.target_device})
@@ -191,14 +193,15 @@ class ImageRestorer:
                                             self.target_device,
                                             part.type)
 
+            if partition is None:
+                invalid_partitions = True
+                continue
+
             log.info("Restoring partition {0}".format(partition.get_path()))
             self.notify_status("restore_partition",\
                                {"restoring_partition":partition.get_path()})
 
-            if partition is None:
-                self.notify_status("no_valid_partitions", \
-                         {"no_valid_partitions":partitions.get_path()})
-                raise ErrorRestoringImage("No valid partitions found")
+            invalid_partitions = False
 
             if hasattr(part, "uuid"):
                 partition.filesystem.open_to_write(part.uuid)
@@ -266,6 +269,10 @@ class ImageRestorer:
 
             self.buffer_manager.join()
             partition.filesystem.close()
+        if invalid_partitions:
+            self.notify_status("no_valid_partitions", \
+                 {"no_valid_partitions":partitions})
+            raise ErrorRestoringImage("No valid partitions found")
 
         self.timer.stop()
 
