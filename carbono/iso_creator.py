@@ -21,6 +21,7 @@ import errno
 from carbono.utils import *
 from carbono.exception import *
 from carbono.config import *
+from carbono.utils import DiskPartition
 
 CARBONO_FILES = ("filesystem.squashfs",
                  "vmlinuz",
@@ -73,12 +74,11 @@ class IsoCreator:
                     return None
 
     def mount_device(self, device):
-        tmpd = make_temp_dir()
-        ret = run_simple_command("mount {0} {1}".\
-              format(device, tmpd))
-        if ret is not 0:
-            raise ErrorMountingFilesystem
-        return tmpd
+        ''' '''
+        disk_part = DiskPartition(device)
+        folder = disk_part.mount_partition(ro=True)
+
+        return folder
 
     def find_carbono_files(self, path):
         dev_files = os.listdir(os.path.join(path,"casper"))
@@ -145,6 +145,11 @@ class IsoCreator:
                     map(lambda x: self.slices[volume].\
                         append(self.target_path + x),
                         ("mbr.bin", "disk.dl"))
+                if os.path.exists("{0}UpImageAuto.json".format(
+                    self.target_path)):
+
+                    self.slices[volume].append("{0}UpImageAuto.json".format(
+                        self.target_path))
 
             if first_volume:
                 extra_params = "-joliet-long -b " + \
