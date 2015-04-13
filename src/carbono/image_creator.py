@@ -249,13 +249,7 @@ class ImageCreator:
                     except Exception as e:
                         log.info("{0}".format(e))
                         self.notify_status("disk_full")
-                        try:
-                            shutil.rmtree(self.target_path)
-                            log.info("The folder which cointain the images files were erased")
-                            break
-                        except Exception as e:
-                            log.info(e)
-                            break
+                        self.cancel()
                         raise ErrorWritingToDevice("Error in write file {0}".\
                                                    format(file_path))
 

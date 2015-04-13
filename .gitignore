@@ -1,6 +1,6 @@
-build/
-dist/
-carbono.egg-info/
+src/build/
+src/dist/
+src/carbono.egg-info/
 *.swp
 *.mo
 *.pyc
