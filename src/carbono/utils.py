@@ -162,9 +162,15 @@ class DiskInfo():
             dev_path = device.path
             dev_model = device.model
             dev_size = device.getSize('b')
+
+            disk_dict[dev_path] = {"model": dev_model,
+                                   "size": dev_size,
+                                   "partitions": {}}
+
             try:
                 disk = parted.Disk(device)
-            except:
+            except Exception as e:
+                print e
                 continue
 
             part_dict = {}
@@ -182,9 +188,8 @@ class DiskInfo():
                 part_dict[part_path] = {"size": part_size,
                                         "type": part_type}
 
-            disk_dict[dev_path] = {"model": dev_model,
-                                   "size": dev_size,
-                                   "partitions": part_dict}
+            disk_dict[dev_path]["partitions"] = part_dict
+
         return disk_dict
 
 
