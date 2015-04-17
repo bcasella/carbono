@@ -252,6 +252,10 @@ class DiskInfo():
         self.__collect_information_about_devices()
 
         device_info = {"size":None,"label":None,"partitions":None}
+
+        if self.__PARTITION_DICT.keys() == []:
+            return formated_partitions_dict
+
         for part in self.__PARTITION_DICT.keys():
             part_dict = {}
             disk_part = DiskPartition(part)
