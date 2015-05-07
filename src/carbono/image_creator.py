@@ -66,10 +66,13 @@ class ImageCreator:
                               {"not_root":"You dont't have permission"})
 
         if not os.path.isdir(output_folder):
-            log.info("The folder is invalid")
-            self.notify_status("invalid_folder",\
-                               {"invalid_folder":output_folder})
-            raise InvalidFolder("Invalid folder {0}".format(output_folder))
+            try:
+                os.mkdir(output_folder)
+            except Exception as e:
+                log.info("The folder is invalid. {0}".format(e))
+                self.notify_status("invalid_folder",\
+                                {"invalid_folder":output_folder})
+                raise InvalidFolder("Invalid folder {0}".format(output_folder))
 
     def notify_percent(self):
         #refresh the interface percentage
@@ -249,13 +252,7 @@ class ImageCreator:
                     except Exception as e:
                         log.info("{0}".format(e))
                         self.notify_status("disk_full")
-                        try:
-                            shutil.rmtree(self.target_path)
-                            log.info("The folder which cointain the images files were erased")
-                            break
-                        except Exception as e:
-                            log.info(e)
-                            break
+                        self.cancel()
                         raise ErrorWritingToDevice("Error in write file {0}".\
                                                    format(file_path))
 
