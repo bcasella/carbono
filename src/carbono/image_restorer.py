@@ -36,6 +36,8 @@ from carbono.config import *
 from carbono.log import log
 from partition_expander import PartitionExpander
 
+from _ped import disk_new_fresh
+
 class ImageRestorer:
 
     def __init__(self, image_folder, target_device,
@@ -122,6 +124,12 @@ class ImageRestorer:
                 raise ErrorRestoringImage("Unrecognized disk label")
 
         if information.get_image_is_disk():
+            if ("msdos" not in disk.getPedDisk().type.name):
+                #se a tabela nao for msdos, recria ela como msdos para nao haver problemas
+                d = disk_new_fresh(device.getPedDevice(), _ped.disk_type_get("msdos"))
+                d.commit_to_dev()
+                disk = Disk(device)
+
             #Get total disk target size
             disk_size = get_disk_size(self.target_device)
             if (total_bytes > disk_size):
@@ -145,16 +153,16 @@ class ImageRestorer:
                 raise ErrorFileNotFound("File not Found {0}".format(image_path))
 
             dlm = DiskLayoutManager(self.image_path)
-            try:
-                if self.expand != 2:
-                    dlm.restore_from_file(disk, True)
-                else:
-                    dlm.restore_from_file(disk, False)
-            except Exception as e:
-                    log.error("Error to restore the disk.dl file")
-                    image_path = self.image_path.split("/")[3] + "/disk.dl"
-                    self.notify_status("file_not_found",{"file_not_found":image_path})
-                    raise ErrorFileNotFound("File not found {0}".format(image_path))
+            #try:
+            if self.expand != 2:
+                dlm.restore_from_file(disk, True)
+            else:
+                dlm.restore_from_file(disk, False)
+            #except Exception as e:
+            #        log.error("Error to restore the disk.dl file")
+            #        image_path = self.image_path.split("/")[3] + "/disk.dl"
+            #        self.notify_status("file_not_found",{"file_not_found":image_path})
+            #        raise ErrorFileNotFound("File not found {0}".format(image_path))
 
         else:
             parent_path = get_parent_path(self.target_device)
