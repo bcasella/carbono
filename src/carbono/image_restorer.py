@@ -124,11 +124,11 @@ class ImageRestorer:
                 raise ErrorRestoringImage("Unrecognized disk label")
 
         if information.get_image_is_disk():
-
-            d = disk_new_fresh(device.getPedDevice(), _ped.disk_type_get("msdos"))
-            d.commit_to_dev()
-            disk = Disk(device)
-            #meacha
+            if ("msdos" not in disk.getPedDisk().type.name):
+                #se a tabela nao for msdos, recria ela como msdos para nao haver problemas
+                d = disk_new_fresh(device.getPedDevice(), _ped.disk_type_get("msdos"))
+                d.commit_to_dev()
+                disk = Disk(device)
 
             #Get total disk target size
             disk_size = get_disk_size(self.target_device)
